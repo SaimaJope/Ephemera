@@ -9,13 +9,15 @@
   "scripts": {
     "start": "electron .",
     "icons": "node scripts/gen-icons.js",
-    "dist": "npm run icons && electron-builder",
-    "dist:win": "npm run icons && electron-builder --win",
-    "dist:mac": "npm run icons && electron-builder --mac",
-    "dist:linux": "npm run icons && electron-builder --linux"
+    "fetch-tor": "node scripts/fetch-tor.js",
+    "dist": "npm run icons && npm run fetch-tor && electron-builder",
+    "dist:win": "npm run icons && npm run fetch-tor && electron-builder --win",
+    "dist:mac": "npm run icons && npm run fetch-tor && electron-builder --mac",
+    "dist:linux": "npm run icons && npm run fetch-tor && electron-builder --linux"
   },
   "dependencies": {
     "@ghostery/adblocker-electron": "^2.18.0",
+    "@zip.js/zip.js": "^2.8.26",
     "cross-fetch": "^4.1.0"
   },
   "devDependencies": {
@@ -39,6 +41,13 @@
       "assets/**/*",
       "!**/*.map",
       "!**/.DS_Store"
+    ],
+    "extraResources": [
+      {
+        "from": "tor",
+        "to": "tor",
+        "filter": ["**/*"]
+      }
     ],
     "win": {
       "target": [

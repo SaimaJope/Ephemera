@@ -95,41 +95,71 @@
     if (s) s.remove();
   }
 
-  // Hoisted once so the per-tick overlay-close scan below doesn't allocate a new
-  // closure 4x/sec for the life of every YouTube page.
-  const clickEach = (b) => b.click();
+  const clickEach = (b) => { try { b.click(); } catch (_) {} };
 
-  function skipVideoAd() {
+  // Kill whatever video ad is on screen RIGHT NOW: mute it (remembering the
+  // user's own mute state so we can restore it), jump it to its end so it
+  // finishes instantly, and click any skip button. Called the moment an ad
+  // appears (see the observer below), so it's gone within a frame, not a flash.
+  // We deliberately do NOT touch playbackRate: YouTube reuses one <video> element
+  // for ad + content, and a left-over fast rate made the first real video churn.
+  let prevMuted = null;
+  function killAd() {
     const player = document.querySelector('.html5-video-player');
+    const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
     if (player && player.classList.contains('ad-showing')) {
-      const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
-      if (video && isFinite(video.duration) && video.duration > 0) {
-        // Seek the ad to its end so it completes instantly. We do NOT touch
-        // playbackRate: YouTube reuses one <video> element for ad + content, and
-        // a left-over fast rate made the first real video buffer/churn.
-        try { video.currentTime = video.duration; } catch (_) {}
+      if (video) {
+        if (prevMuted === null) prevMuted = video.muted; // capture the real setting once
+        video.muted = true;                              // no audio flash
+        if (isFinite(video.duration) && video.duration > 0) {
+          try { video.currentTime = video.duration; } catch (_) {}
+        }
       }
       const skip = document.querySelector(
         '.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, .ytp-ad-skip-button-container button'
       );
       if (skip) skip.click();
+    } else if (prevMuted !== null && video) {
+      video.muted = prevMuted; prevMuted = null;          // ad over -> restore mute
     }
     document.querySelectorAll('.ytp-ad-overlay-close-button, .ytp-ad-overlay-close-container').forEach(clickEach);
   }
 
-  function tick() {
-    if (!adblockOn) { removeStyle(); return; } // blocker off -> let ads play
-    // No point scanning a backgrounded tab 4x/sec: nothing is being watched, and
-    // YouTube pauses hidden playback anyway. This stops every open YouTube tab
-    // from being a permanent DOM-scan in the background.
+  // Watch the player element's class for the instant it flips to "ad-showing"
+  // and react in the same task - so the ad is skipped immediately instead of up
+  // to a poll-interval later. We observe ONLY that one element's class attribute
+  // (never the whole tree), so this stays cheap on YouTube's hyperactive DOM.
+  let watched = null;
+  const adObserver = new MutationObserver(() => { if (adblockOn) killAd(); });
+  function watchPlayer() {
+    const player = document.querySelector('.html5-video-player');
+    if (player && player !== watched) {
+      watched = player;
+      try { adObserver.disconnect(); adObserver.observe(player, { attributes: true, attributeFilter: ['class'] }); } catch (_) {}
+      if (adblockOn) killAd();
+    }
+  }
+
+  // Gentle backstop (and the only thing that runs once steady): keep the cosmetic
+  // style applied, re-arm the observer if YouTube swapped the player, and catch
+  // anything the observer missed. 500ms is plenty - the observer does the real,
+  // instant work; a backgrounded tab is skipped (its playback is paused anyway).
+  function backstop() {
+    if (!adblockOn) { removeStyle(); return; }
     if (document.hidden) return;
     injectStyle();
-    skipVideoAd();
+    watchPlayer();
+    killAd();
   }
 
   const start = () => {
-    tick();
-    setInterval(tick, 250);
+    if (adblockOn) injectStyle();
+    // Find the player fast on first load so even the pre-roll is caught the
+    // instant it appears; once attached, the observer handles everything and
+    // this fast probe stops (no ongoing churn).
+    let tries = 0;
+    const probe = setInterval(() => { watchPlayer(); if (watched || ++tries > 40) clearInterval(probe); }, 100);
+    setInterval(backstop, 500);
   };
 
   if (document.readyState === 'loading') {

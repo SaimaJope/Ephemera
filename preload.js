@@ -19,8 +19,11 @@ contextBridge.exposeInMainWorld('ephemera', {
   // the exported notepad .txt for this one wipe.
   cleanSlate: (opts) => ipcRenderer.invoke('clean-slate', opts),
 
-  // Notepad: export the current text to a user-chosen .txt (Save dialog).
-  notepadSave: (text) => ipcRenderer.invoke('notepad:save', text),
+  // Notepad: export to a user-chosen file (Save dialog). payload is either
+  //   { format: 'txt', text }                         - the active note as .txt
+  //   { format: 'zip', notes: [{title, body}], password } - all notes, AES-256
+  //     encrypted when a password is given, else a plain .zip.
+  notepadSave: (payload) => ipcRenderer.invoke('notepad:save', payload),
 
   // Live count of blocked ad/tracker requests.
   onBlockedCount: (cb) => {
@@ -29,9 +32,10 @@ contextBridge.exposeInMainWorld('ephemera', {
     return () => ipcRenderer.removeListener('blocked-count', handler);
   },
 
-  // A popup / target=_blank navigation that should open as a new tab.
+  // A popup / target=_blank navigation that should open as a new tab. `tor` is
+  // true when the opener was a Tor tab, so the new tab stays on Tor (no leak).
   onNewTab: (cb) => {
-    const handler = (_event, url) => cb(url);
+    const handler = (_event, url, tor) => cb(url, tor);
     ipcRenderer.on('new-tab', handler);
     return () => ipcRenderer.removeListener('new-tab', handler);
   },
@@ -75,6 +79,23 @@ contextBridge.exposeInMainWorld('ephemera', {
 
   // Open dropped local files (PDFs/images/text) in new tabs.
   openFiles: (paths) => ipcRenderer.send('ephemera:open-files', paths),
+
+  // Onion routing (Tor). The chrome prepares the Tor session before opening a Tor
+  // tab, polls check() to drive the live "Tor detected / start Tor" banner, and
+  // can request a fresh identity. status/check/prepare/newIdentity all resolve to
+  // { enabled, running, port, ready }.
+  tor: {
+    status:      () => ipcRenderer.invoke('tor:status'),
+    check:       () => ipcRenderer.invoke('tor:check'),
+    prepare:     () => ipcRenderer.invoke('tor:prepare'),
+    newIdentity: () => ipcRenderer.invoke('tor:new-identity'),
+    restart:     () => ipcRenderer.invoke('tor:restart'),
+    onStatus: (cb) => {
+      const handler = (_event, status) => cb(status);
+      ipcRenderer.on('tor:status', handler);
+      return () => ipcRenderer.removeListener('tor:status', handler);
+    }
+  },
 
   // Downloads. Everything lands in one ephemeral folder that Clean Slate (and
   // quit) deletes outright; the renderer drives the Firefox-style panel from

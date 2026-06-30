@@ -40,6 +40,9 @@
     <!-- Tab strip -->
     <div id="tabstrip">
       <div id="tabs" role="tablist">
+        <!-- One "+" : left-click opens a normal tab; right-click offers Normal /
+             Onion (Tor). Kept as a single control with a choice so the two modes
+             can never be confused. -->
         <button id="newtab-btn" class="iconbtn newtab" data-i18n-title="tip_newtab" aria-label="New tab">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
         </button>
@@ -74,6 +77,10 @@
             <path d="m9 12 2 2 4-4" />
           </svg>
         </span>
+        <!-- Onion mode badge: empty (hidden) on normal tabs; shows "Onion" (purple)
+             when on a connected Tor tab, or "Tor off" (amber) when Tor is down -
+             an explicit, always-visible statement of which mode you are in. -->
+        <span id="omnibox-tor-badge" aria-live="polite"></span>
         <input id="address" type="text" spellcheck="false" autocomplete="off"
                data-i18n-ph="omnibox_ph" aria-label="Address bar" />
       </form>
@@ -114,6 +121,20 @@
 
     <!-- Web content (one webview per tab) -->
     <div id="views">
+      <!-- Tor info-bar: shown only on a Tor tab. Connected = a calm anonymity
+           confirmation (+ New identity); not running = the friendly onboarding
+           (Get Tor / Check again). Populated by renderer.js (updateTorBanner). -->
+      <div id="tor-banner" aria-hidden="true">
+        <!-- Real onion mark (masked from assets/onion.svg), tinted by CSS. -->
+        <span class="tor-banner-ico" aria-hidden="true"></span>
+        <span class="tor-banner-text"></span>
+        <div class="tor-banner-actions"></div>
+        <button class="tor-banner-close" aria-label="Dismiss">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+        </button>
+        <!-- Bootstrap progress (only while the bundled Tor is connecting). -->
+        <span class="tor-banner-progress" aria-hidden="true"></span>
+      </div>
       <!-- Offline screen: raised by renderer.js when a main-frame load fails
            because the machine is offline (in place of Chromium's error page).
            The Space Invaders scene is drawn on the canvas by offline.js. -->
@@ -136,15 +157,74 @@
           </div>
         </div>
       </div>
+
+      <!-- Error screen: raised by renderer.js when a single site's main-frame
+           load fails (DNS, refused, TLS, timeout, …), in place of Chromium's
+           default error page. The diagnostic eyebrow/title/host give the failure
+           context; the centrepiece is a playable retro Tetris drawn by error.js on
+           the canvas (press Space to start, dino-style). Enter still retries. -->
+      <div id="error-screen" tabindex="-1" role="region" aria-label="This page could not be loaded" aria-hidden="true">
+        <div class="err-inner">
+          <div class="err-term" aria-hidden="true">
+            <span class="u">ephemera@resolver</span><span class="s">:</span>~<span class="s">$</span> <span class="err-cmd" id="err-cmd">lookup example.com</span><span class="err-cursor"></span>
+          </div>
+          <div class="err-head">
+            <span class="err-glyph" id="err-glyph" aria-hidden="true"></span>
+            <h1 class="err-title" id="err-title">This site can&rsquo;t be reached</h1>
+          </div>
+          <p class="err-sub" id="err-sub">We couldn&rsquo;t find the server.</p>
+          <div class="err-meta">
+            <span class="err-host" id="err-host" title=""></span>
+            <span class="err-code" id="err-code"></span>
+          </div>
+
+          <!-- Tetris arcade — a HIDDEN easter egg. The vault stays sealed (the game
+               is invisible, nothing hints at it); pressing Space secretly unseals
+               it, then a Begin button starts play. error.js drives the reveal. -->
+          <div class="err-stage" id="err-stage" aria-hidden="true">
+            <canvas id="err-board" class="err-board" width="100" height="200" aria-hidden="true"></canvas>
+            <div class="err-rail" aria-hidden="true">
+              <span class="err-rail-label">NEXT</span>
+              <canvas id="err-next" class="err-next" width="40" height="40"></canvas>
+              <div class="err-stat"><span class="err-rail-label">SCORE</span><b id="err-score">0</b></div>
+              <div class="err-stat"><span class="err-rail-label">LINES</span><b id="err-lines">0</b></div>
+              <div class="err-stat"><span class="err-rail-label">LEVEL</span><b id="err-level">1</b></div>
+              <span class="err-keys">&larr;&rarr; &uarr; &#x2423;</span>
+            </div>
+            <div class="err-scan" aria-hidden="true"></div>
+            <div class="err-prompt" id="err-prompt">
+              <span class="err-prompt-title" id="err-prompt-title"></span>
+              <button class="err-begin" id="err-begin" type="button">Begin</button>
+            </div>
+          </div>
+
+          <div class="err-foot">
+            <span class="err-hint" id="err-hint">Press Enter to try again</span>
+            <div class="err-actions">
+              <button class="err-back" id="err-back" type="button" hidden>Go back</button>
+              <button class="err-retry" id="err-retry" type="button">Try again</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Zoom indicator: pops up on Ctrl+wheel / Ctrl+/- like Chrome's bubble.
+           Shows the current page zoom with nudge buttons and a snap-to-100%. -->
+      <div id="zoom-bubble" aria-hidden="true">
+        <span id="zoom-pct">100%</span>
+        <button id="zoom-out" class="zoom-btn" type="button" aria-label="Zoom out">&#8722;</button>
+        <button id="zoom-in" class="zoom-btn" type="button" aria-label="Zoom in">+</button>
+        <button id="zoom-reset" class="zoom-reset" type="button" data-i18n="zoom_reset">Reset</button>
+      </div>
     </div>
 
     <!-- Find in page (Ctrl+F) -->
     <div id="findbar" aria-hidden="true">
-      <input id="find-input" type="text" spellcheck="false" autocomplete="off" placeholder="Find in page" aria-label="Find in page" />
+      <input id="find-input" type="text" spellcheck="false" autocomplete="off" placeholder="Find in page" aria-label="Find in page" data-i18n-ph="find_ph" data-i18n-aria="find_ph" />
       <span id="find-count"></span>
-      <button id="find-prev" class="find-btn" title="Previous (Shift+Enter)" aria-label="Previous match"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button>
-      <button id="find-next" class="find-btn" title="Next (Enter)" aria-label="Next match"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
-      <button id="find-close" class="find-btn" title="Close (Esc)" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      <button id="find-prev" class="find-btn" title="Previous (Shift+Enter)" aria-label="Previous match" data-i18n-title="find_prev" data-i18n-aria="find_prev"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button>
+      <button id="find-next" class="find-btn" title="Next (Enter)" aria-label="Next match" data-i18n-title="find_next" data-i18n-aria="find_next"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      <button id="find-close" class="find-btn" title="Close (Esc)" aria-label="Close" data-i18n-title="find_close" data-i18n-aria="find_close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
     </div>
 
     <!-- Settings -->
@@ -239,6 +319,43 @@
               <div><div class="set-label" data-i18n="lbl_dnt">Send DNT and GPC</div><div class="set-sub" data-i18n="sub_dnt">Do-Not-Track and Global Privacy Control</div></div>
               <button class="toggle" role="switch" data-key="sendDnt" aria-checked="true" aria-label="Send DNT and GPC"></button>
             </div>
+            <div class="set-row">
+              <div><div class="set-label" data-i18n="lbl_cookies">Block cross-site cookies</div><div class="set-sub" data-i18n="sub_cookies">Stop third-party cookies tracking you between sites</div></div>
+              <button class="toggle" role="switch" data-key="blockThirdPartyCookies" aria-checked="true" aria-label="Block cross-site cookies"></button>
+            </div>
+            <div class="set-row">
+              <div><div class="set-label" data-i18n="lbl_tor">Onion routing (Tor)</div><div class="set-sub" data-i18n="sub_tor">Open anonymous tabs over the Tor network. Requires Tor running.</div></div>
+              <button class="toggle" role="switch" data-key="torEnabled" aria-checked="true" aria-label="Onion routing"></button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <h3 data-i18n="sec_security">Security levels</h3>
+            <p class="settings-note" data-i18n="sub_security">Standard: everything on. Safer: no JavaScript on insecure sites. Safest: no JavaScript.</p>
+            <div class="set-row set-row-stack">
+              <div><div class="set-label" data-i18n="lbl_sec_normal">Normal browsing</div><div class="set-sub" data-i18n="sub_sec_normal">JavaScript and active content on regular tabs</div></div>
+              <div class="seg seg-sec" data-key="securityLevel">
+                <button data-val="standard" data-i18n="seclvl_standard">Standard</button>
+                <button data-val="safer" data-i18n="seclvl_safer">Safer</button>
+                <button data-val="safest" data-i18n="seclvl_safest">Safest</button>
+              </div>
+            </div>
+            <div class="set-row set-row-stack">
+              <div><div class="set-label" data-i18n="lbl_sec_tor">Tor browsing</div><div class="set-sub" data-i18n="sub_sec_tor">Clearnet sites opened over Tor</div></div>
+              <div class="seg seg-sec" data-key="torSecurityLevel">
+                <button data-val="standard" data-i18n="seclvl_standard">Standard</button>
+                <button data-val="safer" data-i18n="seclvl_safer">Safer</button>
+                <button data-val="safest" data-i18n="seclvl_safest">Safest</button>
+              </div>
+            </div>
+            <div class="set-row set-row-stack">
+              <div><div class="set-label" data-i18n="lbl_sec_onion">.onion services</div><div class="set-sub" data-i18n="sub_sec_onion">Onion sites opened over Tor. Safer = first-party scripts only.</div></div>
+              <div class="seg seg-sec" data-key="onionSecurityLevel">
+                <button data-val="standard" data-i18n="seclvl_standard">Standard</button>
+                <button data-val="safer" data-i18n="seclvl_safer">Safer</button>
+                <button data-val="safest" data-i18n="seclvl_safest">Safest</button>
+              </div>
+            </div>
           </section>
 
           <section class="settings-section">
@@ -309,6 +426,22 @@
       </div>
     </div>
 
+    <!-- Close-browser confirmation (raised when the last open tab is closed) -->
+    <div id="quit-overlay" aria-hidden="true">
+      <div class="confirm-scrim" data-quit-no></div>
+      <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="quit-title">
+        <span class="confirm-icon quit-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2v10" /><path d="M18.36 6.64a9 9 0 1 1-12.73 0" /></svg>
+        </span>
+        <h2 id="quit-title" data-i18n="quit_title">Close Ephemera?</h2>
+        <p data-i18n="quit_msg">This is your last tab. Closing it quits the browser.</p>
+        <div class="confirm-actions">
+          <button id="quit-no" class="btn-secondary" data-quit-no data-i18n="btn_no">No</button>
+          <button id="quit-yes" class="btn-danger" data-i18n="btn_yes">Yes</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Wipe loading screen -->
     <div id="wipe-overlay" aria-hidden="true">
       <span class="wipe-logo"></span>
@@ -351,9 +484,20 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
         </button>
       </div>
+      <!-- Note switcher: one chip per note plus a "new note" button. Rebuilt by
+           renderer.js; all notes are ephemeral (in memory only, wiped on clear). -->
+      <div id="np-tabs" class="np-tabs" role="tablist"></div>
+      <input id="np-note-title" class="np-note-title" type="text" spellcheck="false" placeholder="Untitled note" aria-label="Note title" />
       <textarea id="np-text" placeholder="Jot something down. It gets wiped when you clear." spellcheck="false"></textarea>
       <div id="np-settings" class="np-settings" hidden>
-        <button id="np-save" class="np-save-btn" type="button">Save to .txt</button>
+        <button id="np-save" class="np-save-btn" type="button">Save this note (.txt)</button>
+        <!-- Export every note into one .zip; a password makes it AES-256 encrypted
+             (opens in 7-Zip / WinRAR with the password). Empty = plain .zip. -->
+        <div class="np-export">
+          <input id="np-password" class="np-password" type="password" autocomplete="off" placeholder="Password (optional)" aria-label="Zip password" />
+          <button id="np-export" class="np-save-btn np-export-btn" type="button">Export all (.zip)</button>
+        </div>
+        <div id="np-export-hint" class="np-export-hint">Leave the password empty for a plain .zip.</div>
         <div id="np-saved" class="np-saved" hidden><span id="np-saved-label">Saved to</span> <span id="np-path" class="np-path"></span></div>
         <div class="np-row">
           <span id="np-warn" class="np-warn">Delete the .txt file when you clear your device?</span>
@@ -384,6 +528,7 @@
 
   </div>
   <script src="offline.js"></script>
+  <script src="error.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

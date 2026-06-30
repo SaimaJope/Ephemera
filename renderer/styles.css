@@ -27,6 +27,17 @@
   --selection-soft: rgba(45, 110, 214, 0.18);
   --radius: 6px;
 
+  /* Per-edge inset that cancels the resize-border overflow a frameless window
+     hangs off the screen edges while MAXIMIZED on Windows (~8px each side). The
+     renderer sets these live from the exact overflow the main process measures;
+     all 0 in a normal window, so windowed layout is pixel-for-pixel unchanged.
+     Without it the top of the titlebar is clipped and the window controls get
+     pushed up against the screen edge / look off-centre. */
+  --win-inset-top: 0px;
+  --win-inset-right: 0px;
+  --win-inset-bottom: 0px;
+  --win-inset-left: 0px;
+
   /* derived depth tokens */
   --highlight:   rgba(255, 255, 255, 0.045);
   --shadow-1:    0 1px 2px rgba(0, 0, 0, 0.35);
@@ -125,6 +136,12 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   grid-template-columns: minmax(0, 1fr); /* lock the single column to the viewport so the tab row can't widen the window */
   width: 100vw;
   height: 100vh;
+  /* Inset the whole chrome by the maximized screen-overflow (0 when not maximized)
+     so the titlebar and its controls land on the visible screen instead of being
+     clipped at the edge. box-sizing: border-box (set globally) keeps #app at the
+     full 100vw/100vh while the padding shrinks the content box, and that padding
+     ring sits in the off-screen/under-taskbar overflow, so it is never visible. */
+  padding: var(--win-inset-top) var(--win-inset-right) var(--win-inset-bottom) var(--win-inset-left);
   overflow: hidden;
   background: var(--bg);
 }
@@ -451,7 +468,7 @@ body.cleanslate-button #clean-slate:active { background: var(--danger); color: v
 
 /* ── Toast ───────────────────────────────────────────────────────────────── */
 #toast {
-  position: fixed; left: 50%; bottom: 22px;
+  position: fixed; left: 50%; bottom: calc(22px + var(--win-inset-bottom));
   transform: translate(-50%, 10px);
   display: flex; align-items: center; gap: 9px;
   max-width: 80vw; padding: 10px 15px;
@@ -517,6 +534,12 @@ body.cleanslate-button #clean-slate:active { background: var(--danger); color: v
 .seg button:hover { color: var(--text); }
 .seg button.active { background: var(--accent-soft); color: var(--accent); }
 
+/* Stacked rows (label above a full-width control) for the security-level segments. */
+.set-row-stack { flex-direction: column; align-items: stretch; gap: 8px; }
+.settings-note { font-size: 11px; color: var(--muted); margin: 2px 0 4px; line-height: 1.45; }
+.seg-sec { display: flex; width: 100%; }
+.seg-sec button { flex: 1 1 0; text-align: center; }
+
 /* toggle switch */
 .toggle { width: 38px; height: 21px; border-radius: 11px; background: var(--bg); border: 1px solid var(--border); position: relative; transition: background var(--t), border-color var(--t); flex: 0 0 auto; }
 .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: var(--muted); transition: transform var(--t), background var(--t); }
@@ -540,8 +563,8 @@ body.cleanslate-button #clean-slate:active { background: var(--danger); color: v
 .select:focus-visible { outline: 2px solid var(--accent); }
 
 /* ── Clean Slate confirmation ────────────────────────────────────────────── */
-#confirm-overlay { position: fixed; inset: 0; z-index: 90; display: none; }
-#confirm-overlay.show { display: block; }
+#confirm-overlay, #quit-overlay { position: fixed; inset: 0; z-index: 90; display: none; }
+#confirm-overlay.show, #quit-overlay.show { display: block; }
 .confirm-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55); }
 .confirm-card {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
@@ -563,6 +586,10 @@ body.cleanslate-button #clean-slate:active { background: var(--danger); color: v
   color: var(--danger);
 }
 .confirm-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+/* The close-browser dialog wears a calm neutral icon - it isn't the irreversible
+   data-wipe that Clean Slate's red icon warns about - while keeping the red "Yes",
+   since confirming still ends the session and clears everything ephemeral. */
+.quit-icon { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
 .confirm-card h2 { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 7px; }
 .confirm-card p { font-size: 12.5px; color: var(--muted); line-height: 1.45; margin-bottom: 20px; }
 .confirm-actions { display: flex; gap: 10px; justify-content: center; }
@@ -781,6 +808,230 @@ body.high-perf .offline-scan,
 body.high-perf #offline-screen::after { display: none; }
 body.high-perf .offline-cursor { animation: none; opacity: 0.85; }
 
+/* ── Error screen (per-site load failure) ────────────────────────────────────
+   Sibling of the offline screen, raised over the content area when ONE site's
+   main-frame load fails (DNS, refused, TLS, timeout, …) in place of Chromium's
+   default error page. The real Chromium code is the hero: error.js scramble-
+   settles it on show, then the page holds dead still. --err-accent carries it
+   and is the live --accent, except the cert case (.is-cert) where it becomes
+   --danger. Unlike the offline screen this rides the THEMED --bg fill so it
+   inverts cleanly in light mode. The reveal + dither + vignette are all dropped
+   under High-performance mode / reduced-motion (calm), leaving a flat, instant,
+   fully-legible editorial page. */
+#error-screen {
+  --err-accent: var(--accent);
+  --err-accent-rgb: var(--accent-rgb);
+  position: absolute; inset: 0; z-index: 5;
+  display: none;
+  flex-direction: column; align-items: center; justify-content: safe center;
+  padding: 26px 28px;
+  background: var(--bg);
+  color: var(--text);
+  overflow: auto;
+  outline: none;
+}
+#error-screen.show { display: flex; }
+#error-screen:focus { outline: none; }
+#error-screen.is-cert { --err-accent: var(--danger); --err-accent-rgb: var(--danger-rgb); }
+/* Fine noise dither so the flat fill never 8-bit bands; inset vignette for depth.
+   Both are decorative-only and dropped in high-perf. */
+#error-screen::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: var(--dither); opacity: 0.5; mix-blend-mode: soft-light;
+}
+#error-screen::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 170px rgba(0, 0, 0, 0.45);
+}
+
+.err-inner {
+  position: relative; z-index: 1;
+  width: min(560px, 92%);
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px; text-align: center;
+}
+
+/* Terminal eyebrow: the next prompt down from the offline shell. */
+.err-term {
+  display: flex; align-items: baseline; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.2px; color: var(--muted);
+}
+.err-term .u { color: var(--err-accent); }
+.err-term .s { color: var(--muted); opacity: 0.7; }
+.err-cmd { color: var(--text); margin-left: 6px; word-break: break-all; }
+.err-cursor {
+  display: inline-block; width: 6px; height: 12px; margin-left: 5px;
+  background: var(--err-accent); transform: translateY(1px);
+  animation: offcursor 1.05s steps(1, end) infinite;
+}
+
+.err-head { display: flex; align-items: center; gap: 10px; }
+.err-glyph { display: inline-flex; color: var(--err-accent); }
+.err-glyph svg {
+  width: 20px; height: 20px; display: block;
+  fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+}
+/* Filled (not stroked) glyphs, e.g. the no-wifi mark, paint with the accent. */
+.err-glyph svg.err-glyph-fill { fill: currentColor; stroke: none; }
+.err-title { font-size: 16px; font-weight: 600; letter-spacing: 0.2px; color: var(--text); }
+.err-sub { font-size: 12px; line-height: 1.45; color: var(--muted); max-width: 52ch; opacity: 0.85; }
+
+/* Host pill (the offline-code recipe): the address we couldn't reach. */
+.err-host {
+  max-width: 100%;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.2px; color: var(--muted);
+  padding: 3px 9px; border: 1px solid var(--border); border-radius: 5px;
+  background: var(--highlight);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#error-screen.is-cert .err-host { border-color: rgba(var(--danger-rgb), 0.4); }
+.err-host:empty { display: none; }
+
+/* Failure context row: the address we couldn't reach + the Chromium code. */
+.err-meta { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.err-code {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.4px; color: var(--muted);
+  padding: 2px 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--highlight);
+}
+.err-code[hidden] { display: none; }
+
+/* ── Tetris arcade (a SEALED easter egg) ─────────────────────────────────────
+   The board + NEXT preview are low-res canvases scaled up nearest-neighbour for
+   crisp bricks. By default the vault is sealed: collapsed to nothing, invisible,
+   no hint it exists. Pressing Space (error.js) adds .open and it unfurls. */
+.err-stage {
+  position: relative; margin-top: 0;
+  display: flex; gap: 11px; align-items: stretch;
+  padding: 0 9px; border: 1px solid rgba(var(--accent-rgb), 0.16); border-width: 0;
+  border-radius: var(--radius);
+  background: #0c0f13; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+  max-height: 0; opacity: 0; transform: translateY(-6px); pointer-events: none;
+  transition: max-height 440ms cubic-bezier(.16, .84, .34, 1),
+              opacity 300ms ease, transform 440ms cubic-bezier(.16, .84, .34, 1),
+              padding 360ms ease, margin 300ms ease, border-width 200ms ease;
+}
+.err-stage.open {
+  margin-top: 6px; padding: 9px; border-width: 1px;
+  max-height: 360px; opacity: 0.92; transform: translateY(0); pointer-events: auto;
+}
+.err-stage.open:hover, #error-screen:focus .err-stage.open { opacity: 1; }
+.err-board {
+  display: block; height: min(256px, 38vh); width: auto; aspect-ratio: 100 / 200;
+  image-rendering: crisp-edges; image-rendering: pixelated;
+  border: 1px solid rgba(var(--accent-rgb), 0.08); border-radius: 2px;
+}
+.err-rail {
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  min-width: 66px; padding: 2px 2px 0; font-family: var(--mono);
+}
+.err-rail-label { font-size: 8.5px; letter-spacing: 1.6px; color: var(--muted); }
+.err-next {
+  display: block; width: 48px; height: 48px;
+  image-rendering: crisp-edges; image-rendering: pixelated;
+}
+.err-stat { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.err-stat b { font-size: 13px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+.err-keys { margin-top: auto; font-size: 12px; letter-spacing: 2px; color: var(--muted); opacity: 0.6; }
+
+.err-scan {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0.5;
+  background: repeating-linear-gradient(
+    to bottom, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, 0.16) 3px);
+}
+.err-prompt {
+  position: absolute; inset: 0; display: none;
+  flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+  pointer-events: none; background: rgba(8, 10, 14, 0.55); backdrop-filter: blur(1px);
+}
+.err-prompt.show { display: flex; }
+.err-prompt-title {
+  font-family: var(--mono); font-size: 17px; font-weight: 700; letter-spacing: 2px;
+  color: var(--muted); text-transform: uppercase;
+}
+.err-prompt-title:empty { display: none; }
+/* The only call-to-action inside the unsealed vault: a quiet retro Begin button. */
+.err-begin {
+  pointer-events: auto;
+  font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--err-accent);
+  background: rgba(var(--accent-rgb), 0.10); border: 1px solid rgba(var(--accent-rgb), 0.5);
+  padding: 7px 18px; border-radius: 6px;
+  transition: background var(--t), color var(--t), border-color var(--t), transform var(--t);
+}
+.err-begin:hover { background: rgba(var(--accent-rgb), 0.2); color: var(--text); border-color: var(--err-accent); }
+.err-begin:active { transform: translateY(1px); }
+@keyframes errblink { 0%, 60% { opacity: 0.78; } 60.01%, 100% { opacity: 0.16; } }
+
+@media (prefers-reduced-motion: reduce) { .err-prompt-sub { animation: none; opacity: 0.85; } }
+body.high-perf .err-scan { display: none; }
+body.high-perf .err-prompt { backdrop-filter: none; }
+body.high-perf .err-prompt-sub { animation: none; opacity: 0.85; }
+
+.err-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; width: 100%; margin-top: 5px;
+}
+.err-hint { font-family: var(--mono); font-size: 11px; letter-spacing: 0.2px; color: var(--muted); }
+.err-actions { display: flex; align-items: center; gap: 8px; }
+.err-retry, .err-back {
+  height: 30px; padding: 0 16px; border-radius: var(--radius);
+  font-size: 12px; font-weight: 700;
+  border: 1px solid var(--border);
+  transition: background var(--t), color var(--t), border-color var(--t);
+}
+.err-retry { background: var(--surface-2); color: var(--text); }
+.err-retry:hover { background: var(--active); border-color: var(--err-accent); color: var(--err-accent); }
+.err-retry:active { background: var(--accent-soft); }
+.err-back { background: transparent; color: var(--muted); }
+.err-back:hover { color: var(--text); border-color: var(--muted); }
+.err-back[hidden] { display: none; }
+
+/* Calm error screen when motion is reduced or High-performance mode is on:
+   no caret blink, no chromatic split (error.js also skips the scramble), and in
+   high-perf the costly dither + vignette are dropped entirely. */
+@media (prefers-reduced-motion: reduce) {
+  .err-cursor { animation: none; opacity: 0.85; }
+}
+body.high-perf .err-cursor { animation: none; opacity: 0.85; }
+body.high-perf #error-screen::before,
+body.high-perf #error-screen::after { display: none; }
+
+/* ── Zoom indicator bubble (Chrome-style) ────────────────────────────────────
+   Pops at the top-right of the page area on Ctrl+wheel / Ctrl+/-; nudge with
+   -/+ and snap back to 100%. Auto-hides after a few idle seconds. */
+#zoom-bubble {
+  position: absolute; top: 10px; right: 14px; z-index: 30;
+  display: none; align-items: center; gap: 4px;
+  height: 42px; padding: 0 7px 0 15px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 23px;
+  box-shadow: var(--shadow-2);
+  opacity: 0; transform: translateY(-7px);
+  transition: opacity 160ms ease, transform 200ms cubic-bezier(.16, .84, .34, 1);
+}
+#zoom-bubble.show { display: flex; opacity: 1; transform: translateY(0); }
+#zoom-pct {
+  min-width: 48px; text-align: center; margin-right: 4px;
+  font-size: 13px; font-weight: 600; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.zoom-btn {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 19px; line-height: 1; color: var(--text);
+  background: transparent; border: none;
+  transition: background var(--t);
+}
+.zoom-btn:hover { background: var(--active); }
+.zoom-btn:active { background: var(--accent-soft); }
+.zoom-reset {
+  height: 30px; padding: 0 14px; margin-left: 5px; border-radius: 16px;
+  font-size: 12px; font-weight: 600; color: var(--accent);
+  background: transparent; border: 1px solid var(--border);
+  transition: background var(--t), border-color var(--t), color var(--t);
+}
+.zoom-reset:hover { background: var(--accent-soft); border-color: var(--accent); }
+
 /* ── Scrollbars ──────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--active); border-radius: 6px; border: 3px solid var(--surface); }
@@ -817,7 +1068,7 @@ body.high-perf .launch-spinner { opacity: 1 !important; }
 
 /* ── Find in page (Ctrl+F) ───────────────────────────────────────────────── */
 #findbar {
-  position: fixed; top: 108px; right: 16px; z-index: 70;
+  position: fixed; top: calc(108px + var(--win-inset-top)); right: calc(16px + var(--win-inset-right)); z-index: 70;
   -webkit-app-region: no-drag;
   display: none; align-items: center; gap: 4px;
   padding: 6px 6px 6px 12px;
@@ -845,7 +1096,7 @@ body.high-perf .launch-spinner { opacity: 1 !important; }
 
 /* ── Notepad panel (ephemeral; export to .txt) ───────────────────────────── */
 #notepad-panel {
-  position: fixed; top: 108px; right: 12px; z-index: 75;
+  position: fixed; top: calc(108px + var(--win-inset-top)); right: calc(12px + var(--win-inset-right)); z-index: 75;
   width: min(420px, 92vw); max-height: calc(100vh - 124px);
   display: none; flex-direction: column;
   background: var(--surface); border: 1px solid var(--border);
@@ -857,6 +1108,49 @@ body.high-perf .launch-spinner { opacity: 1 !important; }
 .np-icon { width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center; color: var(--muted); transition: background var(--t), color var(--t); }
 .np-icon:hover { background: var(--surface-2); color: var(--accent); }
 .np-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Note switcher: a horizontal, scrollable strip of note chips + a "new note"
+   button. The active chip carries the accent; each chip reveals a close on hover. */
+.np-tabs {
+  display: flex; align-items: center; gap: 4px;
+  padding: 8px 10px; border-bottom: 1px solid var(--border);
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+}
+.np-tabs::-webkit-scrollbar { height: 0; }
+.np-tab {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 6px;
+  max-width: 150px; height: 26px; padding: 0 6px 0 10px;
+  border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--muted); font-size: 12px;
+  transition: background var(--t), color var(--t), border-color var(--t);
+}
+.np-tab:hover { color: var(--text); }
+.np-tab.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.np-tab-label { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.np-tab-x {
+  width: 16px; height: 16px; flex: 0 0 auto; border-radius: 4px;
+  display: grid; place-items: center; opacity: 0;
+  transition: opacity var(--t), background var(--t);
+}
+.np-tab:hover .np-tab-x, .np-tab.active .np-tab-x { opacity: 0.7; }
+.np-tab-x:hover { opacity: 1; background: var(--active); }
+.np-tab-x svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.np-add {
+  flex: 0 0 auto; width: 26px; height: 26px; border-radius: 6px;
+  display: grid; place-items: center; color: var(--muted);
+  border: 1px dashed var(--border);
+  transition: background var(--t), color var(--t), border-color var(--t);
+}
+.np-add:hover { color: var(--accent); border-color: var(--accent); background: var(--surface-2); }
+.np-add svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; }
+
+/* Active-note title: a quiet inline field above the body. */
+.np-note-title {
+  border: none; outline: none; background: transparent; color: var(--text);
+  padding: 10px 14px 0; font-family: var(--ui); font-size: 13.5px; font-weight: 700;
+  user-select: text; cursor: text;
+}
+.np-note-title::placeholder { color: var(--muted); font-weight: 400; }
 #np-text {
   flex: 1; min-height: 300px; resize: none;
   border: none; outline: none; background: transparent; color: var(--text);
@@ -867,6 +1161,19 @@ body.high-perf .launch-spinner { opacity: 1 !important; }
 .np-settings { border-top: 1px solid var(--border); padding: 12px 14px; display: flex; flex-direction: column; gap: 12px; }
 .np-save-btn { align-self: flex-start; padding: 7px 12px; border-radius: 6px; background: var(--surface-2); color: var(--text); border: 1px solid var(--border); font-size: 12.5px; transition: background var(--t), border-color var(--t); }
 .np-save-btn:hover { background: var(--active); border-color: var(--accent); }
+/* Encrypted-zip export row: an optional password + the export button. */
+.np-export { display: flex; align-items: center; gap: 8px; }
+.np-export-btn { align-self: auto; flex: 0 0 auto; white-space: nowrap; }
+.np-password {
+  flex: 1; min-width: 0; height: 32px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--text);
+  font-family: var(--mono); font-size: 12.5px;
+  user-select: text; cursor: text; transition: border-color var(--t), box-shadow var(--t);
+}
+.np-password::placeholder { color: var(--muted); font-family: var(--ui); }
+.np-password:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.np-export-hint { font-size: 11px; color: var(--muted); margin-top: -4px; }
 .np-saved { font-size: 11.5px; color: var(--muted); word-break: break-all; }
 .np-saved .np-path { color: var(--text); }
 .np-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
@@ -1030,3 +1337,160 @@ body.high-perf .launch-spinner { opacity: 1 !important; }
   font-family: var(--mono); font-weight: 700; font-size: 11px; line-height: 22px;
   text-align: center;
 }
+
+/* ============================================================================
+   Onion routing (Tor) - the onion-mode identity. The chrome adopts the
+   old-school Tor purple WHOLE-WINDOW whenever the active tab is an onion tab
+   (body.tor-active), and a warning amber when in an onion tab but Tor is not
+   reachable (body.tor-down). The goal is absolute, at-a-glance certainty about
+   which mode you are in: a journalist must never search a normal tab believing
+   it is anonymous, nor an onion tab believing Tor is connected.
+   ========================================================================== */
+:root {
+  /* Two-axis onion palette (Guardian-Project "safe & bright"). Chrome COLOUR =
+     which mode (blueviolet = onion); INDICATOR colour = connection status
+     (lime = anonymous, red = NOT anonymous). No orange - it clashes with the
+     amber accent option and would muddy the safety signal. */
+  --onion:          #8a2be2;   /* blueviolet - onion-mode identity */
+  --onion-rgb:      138, 43, 226;
+  --onion-bright:   #b388ff;   /* lighter blueviolet, legible for glyphs on dark */
+  --onion-bright-rgb: 179, 136, 255;
+  --onion-safe:     #00ff00;   /* lime - connected & anonymous */
+  --onion-safe-rgb: 0, 255, 0;
+  --onion-alert:    #ff3b3b;   /* red - in onion mode but Tor is NOT connected (danger) */
+  --onion-alert-rgb: 255, 59, 59;
+}
+
+/* Whole-chrome onion theme: re-point the surface + accent tokens so the titlebar,
+   tab strip, toolbar and omnibox all turn BLUEVIOLET together - the unmistakable
+   "this is an onion tab" signal. Defined AFTER the theme-dark/theme-light blocks,
+   so onion mode looks the same in every theme. The CONNECTION status (lime/red)
+   rides separately on the onion glyph + badge below, so the two are independent. */
+body.tor-active {
+  --bg:        #100a22;
+  --surface:   #1b1140;
+  --surface-2: #261a52;
+  --border:    #46357a;
+  --highlight: rgba(179, 136, 255, 0.06);
+  --active:    #2f2160;
+  --accent:     var(--onion-bright);
+  --accent-rgb: 179, 136, 255;
+  --accent-soft: rgba(179, 136, 255, 0.16);
+}
+
+/* Tor tab in the strip: a blueviolet onion favicon (fixed colour, so it reads even
+   when that tab sits in the background and the chrome is not themed). */
+.tab-favicon.is-tor {
+  background-color: var(--onion-bright);
+  -webkit-mask: url('../assets/onion.svg') center / 13px 13px no-repeat;
+          mask: url('../assets/onion.svg') center / 13px 13px no-repeat;
+  opacity: 0.98;
+}
+.tab.tor.active { box-shadow: inset 0 2px 0 var(--accent), inset 0 3px 0 var(--highlight); }
+
+/* Omnibox onion glyph + badge = CONNECTION STATUS, independent of the blueviolet
+   chrome: LIME when anonymous, RED when in onion mode but Tor is off. */
+body.tor-active #omnibox-shield svg { display: none; }
+body.tor-active #omnibox-shield {
+  width: 15px; height: 15px;
+  background: var(--onion-safe);
+  -webkit-mask: url('../assets/onion.svg') center / contain no-repeat;
+          mask: url('../assets/onion.svg') center / contain no-repeat;
+}
+#omnibox-tor-badge {
+  display: none; flex: 0 0 auto;
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--onion-safe);
+  padding: 2px 7px; border-radius: 999px;
+  background: rgba(var(--onion-safe-rgb), 0.14);
+  border: 1px solid rgba(var(--onion-safe-rgb), 0.5);
+}
+body.tor-active #omnibox-tor-badge { display: inline-block; }
+body.tor-active #address { caret-color: var(--accent); }
+/* TOR OFF: the onion glyph, the badge and the whole omnibox go RED - you are in
+   onion mode but NOT anonymous. (Searches still fail closed; this is the warning.) */
+body.tor-down #omnibox-shield { background: var(--onion-alert); }
+body.tor-down #omnibox-tor-badge {
+  color: var(--onion-alert);
+  background: rgba(var(--onion-alert-rgb), 0.16);
+  border-color: rgba(var(--onion-alert-rgb), 0.65);
+}
+body.tor-down #omnibox {
+  border-color: var(--onion-alert);
+  box-shadow: 0 0 0 2px rgba(var(--onion-alert-rgb), 0.22);
+}
+/* Connecting (the bundled Tor is bootstrapping): a neutral blueviolet glyph +
+   badge - not yet lime (anonymous) and not red (off). */
+body.tor-connecting #omnibox-shield { background: var(--onion-bright); }
+body.tor-connecting #omnibox-tor-badge {
+  color: var(--onion-bright);
+  background: rgba(var(--onion-bright-rgb), 0.14);
+  border-color: rgba(var(--onion-bright-rgb), 0.5);
+}
+
+/* Tor info-bar over the top of the content area: blueviolet/lime when connecting
+   or connected, RED when Tor is off. */
+#tor-banner {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 6;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  background: linear-gradient(rgba(var(--onion-rgb), 0.20), rgba(var(--onion-rgb), 0.20)), #1b1140;
+  border-bottom: 1px solid rgba(var(--onion-rgb), 0.55);
+  box-shadow: var(--shadow-1);
+  transform: translateY(-100%);
+  transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  pointer-events: none;
+}
+#tor-banner.show { transform: translateY(0); pointer-events: auto; }
+.tor-banner-ico {
+  flex: 0 0 auto; width: 19px; height: 19px;
+  background: var(--onion-safe);
+  -webkit-mask: url('../assets/onion.svg') center / contain no-repeat;
+          mask: url('../assets/onion.svg') center / contain no-repeat;
+}
+.tor-banner-text { flex: 1; min-width: 0; font-size: 12.5px; color: var(--text); }
+.tor-banner-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.tor-act {
+  -webkit-app-region: no-drag;
+  height: 26px; padding: 0 11px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border); border-top-color: var(--highlight);
+  background: var(--surface-2); color: var(--text);
+  font-size: 12px; font-weight: 600;
+  transition: background var(--t), color var(--t), border-color var(--t), opacity var(--t);
+}
+.tor-act:hover { background: var(--active); }
+.tor-act-primary { background: var(--onion); color: #fff; border-color: transparent; }
+.tor-act-primary:hover { filter: brightness(1.12); }
+.tor-act.busy { opacity: 0.55; pointer-events: none; }
+.tor-banner-close {
+  flex: 0 0 auto; width: 24px; height: 24px;
+  border-radius: var(--radius);
+  display: grid; place-items: center; color: var(--muted);
+  transition: background var(--t), color var(--t);
+}
+.tor-banner-close:hover { background: var(--surface-2); color: var(--text); }
+.tor-banner-close svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+/* Connecting (bootstrapping the bundled Tor): a slim progress bar under the bar. */
+.tor-banner-progress { position: absolute; left: 0; bottom: 0; height: 2px; width: 0%; background: var(--onion-bright); transition: width 300ms ease; }
+/* Tor OFF: red framing + a red onion + hide the dismiss (the onboarding is the point). */
+#tor-banner.tor-off {
+  background: linear-gradient(rgba(var(--onion-alert-rgb), 0.16), rgba(var(--onion-alert-rgb), 0.16)), #2a1414;
+  border-bottom-color: rgba(var(--onion-alert-rgb), 0.55);
+}
+#tor-banner.tor-off .tor-banner-ico { background: var(--onion-alert); }
+#tor-banner.tor-off .tor-banner-close { display: none; }
+#tor-banner.tor-off .tor-act-primary { background: var(--onion-alert); color: #fff; }
+
+@media (prefers-reduced-motion: reduce) { #tor-banner { transition: none; } .tor-banner-progress { transition: none; } }
+
+/* Right-click "+" -> Normal / Onion menu. The onion item is the blueviolet onion:
+   its mark is blueviolet at rest, and the whole row fills blueviolet on hover. */
+.ctx-item.ctx-onion .ctx-ico svg { display: none; }
+.ctx-item.ctx-onion .ctx-ico {
+  background: var(--onion-bright);
+  -webkit-mask: url('../assets/onion.svg') center / 16px 16px no-repeat;
+          mask: url('../assets/onion.svg') center / 16px 16px no-repeat;
+}
+.ctx-item.ctx-onion:hover { background: var(--onion); color: #fff; }
+.ctx-item.ctx-onion:hover .ctx-ico { background: #fff; }

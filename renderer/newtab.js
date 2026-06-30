@@ -54,7 +54,10 @@
     if (!s) return null;
     if (/^(https?|file|about|data):/i.test(s)) return s;
     const hostLike = /^(localhost(:\d+)?|[^\s/?#]+\.[^\s/?#]{2,})(:\d+)?([/?#].*)?$/i;
-    if (!/\s/.test(s) && hostLike.test(s)) return 'https://' + s;
+    if (!/\s/.test(s) && hostLike.test(s)) {
+      // .onion is plain-http (self-encrypted to the hidden service); https would fail.
+      return (/\.onion(?:[:/?#]|$)/i.test(s) ? 'http://' : 'https://') + s;
+    }
     return engineUrl + encodeURIComponent(s);
   }
 
@@ -63,6 +66,27 @@
     const url = resolve(input.value);
     if (url) window.location.href = url;
   });
+
+  // ── Onion routing (Tor) home variant ──────────────────────────────────────
+  // On a Tor tab the chrome pushes { tor:true, torRunning }. We swap the beetle
+  // logo for the onion (CSS, via body.tor) and show a live status line: connected
+  // and anonymous, or "start Tor" onboarding. The actionable buttons live in the
+  // chrome's info-bar (which holds the privileged bridge), not in this sandbox.
+  const TOR_NT = {
+    en: { on: "You're browsing over Tor. Your traffic is anonymous.", off: "Tor isn't running. Start Tor or Tor Browser to go anonymous." },
+    es: { on: 'Estás navegando por Tor. Tu tráfico es anónimo.', off: 'Tor no está en ejecución. Inicia Tor o Tor Browser para el anonimato.' },
+    ru: { on: 'Вы просматриваете через Tor. Ваш трафик анонимен.', off: 'Tor не запущен. Запустите Tor или Tor Browser для анонимности.' },
+    fi: { on: 'Selaat Torin kautta. Liikenteesi on nimetöntä.', off: 'Tor ei ole käynnissä. Käynnistä Tor selataksesi nimettömänä.' }
+  };
+  function updateTor(cfg) {
+    const body = document.body;
+    body.classList.toggle('tor', !!cfg.tor);
+    if (!cfg.tor) return;
+    body.classList.toggle('tor-running', !!cfg.torRunning);
+    const lang = TOR_NT[document.documentElement.lang] ? document.documentElement.lang : 'en';
+    const el = document.getElementById('nt-tor-text');
+    if (el) el.textContent = cfg.torRunning ? TOR_NT[lang].on : TOR_NT[lang].off;
+  }
 
   // Applied by the chrome (renderer.js) via executeJavaScript.
   window.__ephemeraApplySettings = (cfg) => {
@@ -97,6 +121,7 @@
     const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (cfg.beautiful && !cfg.highPerf && !reduceMotion) dust.start();
     else dust.stop();
+    updateTor(cfg); // onion logo + Tor status line on a Tor tab
     reveal(); // settings are in: show the logo (correct accent) and search box
   };
 

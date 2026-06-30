@@ -6,5 +6,8 @@ build/icon-source.svg
 .DS_Store
 Thumbs.db
 
+# Bundled Tor binary (fetched at build time by scripts/fetch-tor.js, not committed)
+tor/
+
 # Local Claude Code tooling state (lock files, session scratch)
 .claude/

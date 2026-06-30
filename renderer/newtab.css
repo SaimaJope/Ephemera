@@ -407,3 +407,41 @@ body.nt-theme-dark .funfact-label, body.nt-theme-light .funfact-label { color: v
 body.nt-theme-dark .funfact-text,  body.nt-theme-light .funfact-text  { color: var(--muted); opacity: 0.7; }
 body.nt-theme-dark .nt-bar,        body.nt-theme-light .nt-bar        { background: var(--highlight); }
 body.nt-theme-dark .nt-bar-fill,   body.nt-theme-light .nt-bar-fill   { background: var(--accent); }
+
+/* ── Onion routing (Tor) home variant ──────────────────────────────────────
+   On a Tor tab the chrome adds body.tor. The beetle logo becomes the onion
+   (masked in the Tor purple, independent of the user's accent), and the fun fact
+   is replaced by a live Tor status line. */
+:root { --onion: #b388ff; --onion-rgb: 179, 136, 255; }
+
+/* Swap the two-layer beetle for a single masked onion. ::before carries the
+   silhouette (now the onion, tinted blueviolet); ::after held the white beetle
+   detail, which we hide. */
+body.tor .logo::before {
+  background: var(--onion);
+  -webkit-mask: url(../assets/onion.svg) center / contain no-repeat;
+          mask: url(../assets/onion.svg) center / contain no-repeat;
+}
+body.tor .logo::after { display: none; }
+body.tor .logo-wrap::before { background: radial-gradient(circle, rgba(var(--onion-rgb), 0.22) 0%, transparent 64%); }
+
+/* The Tor status line takes the fun fact's place. */
+body.tor #funfact { display: none; }
+.nt-tor { display: none; }
+body.tor .nt-tor {
+  display: flex; align-items: center; gap: 9px;
+  margin-top: 18px;
+  font-size: 13px; color: var(--muted);
+}
+/* Status dot: RED when Tor is not connected, LIME when anonymous (no orange). */
+.nt-tor-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: #ff3b3b;
+  box-shadow: 0 0 0 4px rgba(255, 59, 59, 0.15);
+  flex: 0 0 auto;
+}
+body.tor.tor-running .nt-tor-dot {
+  background: #00ff00; /* lime: connected and anonymous */
+  box-shadow: 0 0 0 4px rgba(0, 255, 0, 0.16);
+}
+body.tor.tor-running .nt-tor-text { color: var(--text); }

@@ -35,6 +35,13 @@
       <span class="funfact-label" id="funfact-label">Fun fact</span>
       <span class="funfact-text" id="funfact-text"></span>
     </p>
+
+    <!-- Tor status line: shown only on a Tor tab (body.tor), in place of the fun
+         fact. The dot is green when connected, amber when Tor isn't running. -->
+    <p class="nt-tor" id="nt-tor" aria-live="polite">
+      <span class="nt-tor-dot" aria-hidden="true"></span>
+      <span class="nt-tor-text" id="nt-tor-text"></span>
+    </p>
   </main>
 
   <!-- Fake fast-load screen: shown on ~1 in 10 new tabs for a fraction of a

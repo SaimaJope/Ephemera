@@ -398,6 +398,13 @@ body.beautiful #tracker-pill.tk-tick::after {
   pointer-events: none;
   animation: tk-ring 600ms ease-out forwards;
 }
+/* Reduced motion: keep the accent colour cues, drop the counter's motion. (The
+   global kill is scoped to body.high-perf, which can't co-exist with beautiful.) */
+@media (prefers-reduced-motion: reduce) {
+  body.beautiful #tracker-pill.has-blocks,
+  body.beautiful #tracker-count.tk-bump,
+  body.beautiful #tracker-pill.tk-tick::after { animation: none; }
+}
 
 /* Clean Slate - default 'subtle' (muted icon, danger on hover); 'button'
    variant (body.cleanslate-button) is the deliberate red-bordered control. */

@@ -166,6 +166,9 @@
     let W = 0, H = 0, last = 0, dragging = false, gx = 0, gy = 0;
     const trail = [];
     const G = 2600, REST = 0.7, WALL = 0.72, FRICTION = 0.84, MAXV = 4200;
+    // Honour the OS "reduce motion" setting: the ball still bounces, but without
+    // the beautiful-mode blur/stretch smear (which CSS can't strip, being inline).
+    const noMotion = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 
     const measure = () => { W = window.innerWidth; H = window.innerHeight; };
     const draw = () => {
@@ -174,7 +177,7 @@
       // rotate(local)/scale/rotate(-local) sandwich stretches along the WORLD
       // velocity vector even as the disc spins (local = velocityAngle - spin).
       let extra = '';
-      if (document.body.classList.contains('beautiful')) {
+      if (document.body.classList.contains('beautiful') && !(noMotion && noMotion.matches)) {
         const s = Math.min(Math.hypot(vx, vy) / 3600, 1);
         if (s > 0.06) {
           const local = Math.atan2(vy, vx) - angle;

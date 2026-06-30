@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <!-- Chrome resources are locked to 'self'; webview guest frames (the actual
+       browsing) are explicitly allowed to reach any web origin. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data: https: http:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-src https: http: about: data:; child-src https: http:;" />
+  <title>Ephemera</title>
+  <!-- Preload the one UI font so its fetch starts in parallel with the CSS parse
+       instead of after it (the @font-face uses font-display: block). Same bytes,
+       same render; chrome text just becomes visible sooner. -->
+  <link rel="preload" href="fonts/GoogleSansFlex.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- Titlebar (drag region) -->
+    <header id="titlebar">
+      <div class="brand">
+        <span class="brand-mark"></span>
+        <span class="brand-name">Ephemera</span>
+      </div>
+      <div class="drag-spacer"></div>
+      <div class="win-controls">
+        <button class="winbtn min" id="win-min" aria-label="Minimize">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
+        </button>
+        <button class="winbtn max" id="win-max" aria-label="Maximize">
+          <svg class="ico-max" viewBox="0 0 24 24" aria-hidden="true"><rect x="5.5" y="5.5" width="13" height="13" rx="1.8" /></svg>
+          <svg class="ico-restore" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="4.5" width="11" height="11" rx="1.6" /><path d="M15.5 8.5H6a1.5 1.5 0 0 0-1.5 1.5v9" /></svg>
+        </button>
+        <button class="winbtn close" id="win-close" aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Tab strip -->
+    <div id="tabstrip">
+      <div id="tabs" role="tablist">
+        <button id="newtab-btn" class="iconbtn newtab" data-i18n-title="tip_newtab" aria-label="New tab">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
+        </button>
+        <div class="tabstrip-fill"></div>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div id="toolbar">
+      <div class="nav">
+        <button id="nav-back" class="iconbtn" data-i18n-title="tip_back" aria-label="Back" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>
+        </button>
+        <button id="nav-forward" class="iconbtn" data-i18n-title="tip_forward" aria-label="Forward" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+        </button>
+        <button id="nav-reload" class="iconbtn" data-i18n-title="tip_reload" aria-label="Reload">
+          <svg class="ico-reload" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+            <path d="M21 3v5h-5" />
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+            <path d="M3 21v-5h5" />
+          </svg>
+          <svg class="ico-stop" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+        </button>
+      </div>
+
+      <form id="omnibox" autocomplete="off">
+        <span id="omnibox-shield" data-i18n-title="tip_shield">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+            <path d="m9 12 2 2 4-4" />
+          </svg>
+        </span>
+        <input id="address" type="text" spellcheck="false" autocomplete="off"
+               data-i18n-ph="omnibox_ph" aria-label="Address bar" />
+      </form>
+
+      <div class="tools">
+        <button id="tracker-pill" class="pill" data-i18n-title="tip_tracker">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+          </svg>
+          <span id="tracker-count">0</span>
+        </button>
+        <button id="downloads-btn" class="iconbtn dl-btn" data-i18n-title="tip_downloads" aria-label="Downloads" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></svg>
+          <span class="dl-btn-bar" aria-hidden="true"><i></i></span>
+        </button>
+        <button id="clean-slate" data-i18n-title="tip_cleanslate">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m7 21-4.3-4.3a1.94 1.94 0 0 1 0-2.74l9.96-9.96a1.94 1.94 0 0 1 2.74 0l5.6 5.6a1.94 1.94 0 0 1 0 2.74L13 21" />
+            <path d="M22 21H7" />
+            <path d="m5 11 9 9" />
+          </svg>
+          <span class="cs-label" data-i18n="cs_label">Clean Slate</span>
+        </button>
+        <button id="notepad-btn" class="iconbtn" title="Notepad" aria-label="Notepad">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+            <path d="M14 3v6h6" /><path d="M8 13h8" /><path d="M8 17h6" />
+          </svg>
+        </button>
+        <button id="settings-btn" class="iconbtn" data-i18n-title="tip_settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Web content (one webview per tab) -->
+    <div id="views">
+      <!-- Offline screen: raised by renderer.js when a main-frame load fails
+           because the machine is offline (in place of Chromium's error page).
+           The Space Invaders scene is drawn on the canvas by offline.js. -->
+      <div id="offline-screen" tabindex="-1" role="region" aria-label="No internet connection" aria-hidden="true">
+        <div class="offline-inner">
+          <div class="offline-term" aria-hidden="true">
+            <span class="u">ephemera@offline</span><span class="s">:</span>~<span class="s">$</span><span class="offline-cmd" id="offline-cmd">ping anywhere.net</span><span class="offline-cursor"></span>
+          </div>
+          <h1 class="offline-title" id="offline-title">No internet connection</h1>
+          <p class="offline-sub" id="offline-sub">Ephemera could not reach the network.</p>
+          <span class="offline-code" id="offline-code" hidden></span>
+          <div class="offline-stage">
+            <span class="offline-score" id="offline-score" aria-hidden="true">0000</span>
+            <canvas id="offline-canvas" class="offline-canvas" width="240" height="150" aria-hidden="true"></canvas>
+            <div class="offline-scan" aria-hidden="true"></div>
+          </div>
+          <div class="offline-foot">
+            <span class="offline-hint" id="offline-hint">&larr; &rarr;  move &middot; space fire &middot; enter retry</span>
+            <button class="offline-retry" id="offline-retry" type="button">Retry</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Find in page (Ctrl+F) -->
+    <div id="findbar" aria-hidden="true">
+      <input id="find-input" type="text" spellcheck="false" autocomplete="off" placeholder="Find in page" aria-label="Find in page" />
+      <span id="find-count"></span>
+      <button id="find-prev" class="find-btn" title="Previous (Shift+Enter)" aria-label="Previous match"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button>
+      <button id="find-next" class="find-btn" title="Next (Enter)" aria-label="Next match"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      <button id="find-close" class="find-btn" title="Close (Esc)" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>
+
+    <!-- Settings -->
+    <div id="settings-overlay" aria-hidden="true">
+      <div class="settings-scrim" data-close></div>
+      <aside class="settings-panel" role="dialog" aria-label="Settings">
+        <div class="settings-head">
+          <h2 data-i18n="settings">Settings</h2>
+          <button id="settings-close" data-close aria-label="Close">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+          </button>
+        </div>
+        <div class="settings-body">
+
+          <section class="settings-section">
+            <h3 data-i18n="sec_general">General</h3>
+            <div class="set-row">
+              <div><div class="set-label" data-i18n="lbl_language">Language</div></div>
+              <select class="select" data-key="language" aria-label="Language">
+                <option value="en">English</option>
+                <option value="es">Español</option>
+                <option value="ru">Русский</option>
+                <option value="fi">Suomi</option>
+              </select>
+            </div>
+            <div class="set-row">
+              <div><div class="set-label" data-i18n="lbl_engine">Search engine</div><div class="set-sub" data-i18n="sub_engine">Used for non-URL queries</div></div>
+              <select class="select" data-key="searchEngine" aria-label="Search engine">
+                <option value="duckduckgo">DuckDuckGo</option>
+                <option value="startpage">Startpage</option>
+                <option value="brave">Brave</option>
+                <option value="google">Google</option>
+              </select>
+            </div>
+            <div class="set-row">
+              <div><div class="set-label" data-i18n="lbl_newtab_opens">New tab opens</div><div class="set-sub" data-i18n="sub_newtab_opens">Ephemera page or your search engine's home</div></div>
+              <select class="select" data-key="newtabMode" aria-label="New tab opens">
+                <option value="page" data-i18n="opt_newtab_page">Ephemera page</option>
+                <option value="engine" data-i18n="opt_newtab_engine">Search engine home</option>
+              </select>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <h3 data-i18n="sec_appearance">Appearance</h3>
+            <div class="set-row">
+              <div><div class="set-label" data-i18n="lbl_accent">Accent colour</div></div>
+              <div class="swatches" data-key="accent">
+                <button class="swatch" data-val="#5ca7fb" style="--sw:#5ca7fb" aria-label="Blue"></button>
+                <button class="swatch" data-val="#2ec27e" style="--sw:#2ec27e" aria-label="Green"></button>
+                <button class="swatch" data-val="#b07cff" style="--sw:#b07cff" aria-label="Purple"></button>
+                <button class="swatch" data-val="#f5a623" style="--sw:#f5a623" aria-label="Amber"></button>
+                <button class="swatch" data-val="#ff6b6b" style="--sw:#ff6b6b" aria-label="Coral"></button>
+              </div>
+            </div>
+            <div class="set-row">
+              <div><div class="set-label" data-i18n="lbl_winctl">Window controls</div></div>
+              <div class="seg" data-key="windowControls">
+                <button data-val="traffic" data-i18n="seg_colour">Colour</button>
+                <button data-val="mono" data-i18n="seg_mono">Mono</button>
+              </div>
+            </div>
+            <div class="set-row">
+              <div><div class="set-label" data-i18n="lbl_newtabbg">New-tab background</div></div>
+              <div class="seg" data-key="newtabBg">
+                <button data-val="navy" data-i18n="seg_navy">Navy</button>
+                <button id="bg-colour-btn" data-val="blue">Blue</button>
+                <button data-val="grey" data-i18n="seg_grey">Grey</button>
+              </div>
+            </div>
+            <div class="set-row">
+              <div><div class="set-label" data-i18n="lbl_branding">Logo and name on new tab</div></div>
+              <button class="toggle" role="switch" data-key="showBranding" aria-checked="true" aria-label="Logo and name"></button>
+            </div>
+            <div class="set-row">
+              <div><div class="set-label" data-i18n="lbl_beautiful">Beautiful mode</div><div class="set-sub" data-i18n="sub_beautiful">Extra motion, mouse-reactive dust, animated tabs</div></div>
+              <button class="toggle" role="switch" data-key="beautifulMode" aria-checked="false" aria-label="Beautiful mode"></button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <h3 data-i18n="sec_privacy">Privacy</h3>
+            <div class="set-row">
+              <div><div class="set-label" data-i18n="lbl_adblock">Block ads and trackers</div></div>
+              <button class="toggle" role="switch" data-key="adblock" aria-checked="true" aria-label="Block ads and trackers"></button>
+            </div>
+            <div class="set-row">
+              <div><div class="set-label" data-i18n="lbl_dnt">Send DNT and GPC</div><div class="set-sub" data-i18n="sub_dnt">Do-Not-Track and Global Privacy Control</div></div>
+              <button class="toggle" role="switch" data-key="sendDnt" aria-checked="true" aria-label="Send DNT and GPC"></button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <h3 data-i18n="sec_performance">Performance</h3>
+            <div class="set-row">
+              <div><div class="set-label" data-i18n="lbl_highperf">High performance mode</div><div class="set-sub" data-i18n="sub_highperf">Fewer animations, lighter page filtering</div></div>
+              <button class="toggle" role="switch" data-key="highPerf" aria-checked="false" aria-label="High performance mode"></button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <h3 data-i18n="sec_toolbar">Toolbar</h3>
+            <div class="set-row">
+              <div><div class="set-label" data-i18n="lbl_counter">Show tracker counter</div></div>
+              <button class="toggle" role="switch" data-key="showCounter" aria-checked="true" aria-label="Show tracker counter"></button>
+            </div>
+            <div class="set-row">
+              <div><div class="set-label" data-i18n="lbl_cleanslate">Clean Slate button</div></div>
+              <div class="seg" data-key="cleanSlate">
+                <button data-val="subtle" data-i18n="seg_subtle">Subtle</button>
+                <button data-val="button" data-i18n="seg_red">Red</button>
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </aside>
+    </div>
+
+    <!-- Clean Slate confirmation -->
+    <div id="confirm-overlay" aria-hidden="true">
+      <div class="confirm-scrim" data-confirm-no></div>
+      <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <span class="confirm-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="m7 21-4.3-4.3a1.94 1.94 0 0 1 0-2.74l9.96-9.96a1.94 1.94 0 0 1 2.74 0l5.6 5.6a1.94 1.94 0 0 1 0 2.74L13 21" />
+            <path d="M22 21H7" /><path d="m5 11 9 9" />
+          </svg>
+        </span>
+        <h2 id="confirm-title" data-i18n="confirm_title">Are you sure?</h2>
+        <p data-i18n="confirm_msg">Wipe all cookies, cache and history?</p>
+        <!-- Shown only when downloaded files exist: Clean Slate erases them too. -->
+        <div id="confirm-dl-warn" class="confirm-dl-warn" hidden>
+          <span class="cdw-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+          </span>
+          <div class="cdw-text">
+            <div class="cdw-title" data-i18n="cdw_title">Downloaded files will be erased</div>
+            <div class="cdw-sub" data-i18n="cdw_sub">Everything you saved this session is deleted for good.</div>
+          </div>
+          <span class="cdw-count" aria-hidden="true">0</span>
+        </div>
+        <!-- Shown only when a notepad .txt was exported and delete-on-clear is on. -->
+        <div id="confirm-np-warn" class="confirm-dl-warn" hidden>
+          <span class="cdw-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6" /></svg>
+          </span>
+          <div class="cdw-text">
+            <div class="cdw-title" id="np-cf-title">Your saved notepad will be deleted</div>
+            <div class="cdw-sub" id="np-cf-sub">You exported it to a .txt this session.</div>
+          </div>
+          <button id="confirm-np-keep" class="np-keep-btn" type="button" aria-pressed="false">Keep it</button>
+        </div>
+        <div class="confirm-actions">
+          <button id="confirm-no" class="btn-secondary" data-confirm-no data-i18n="btn_no">No</button>
+          <button id="confirm-yes" class="btn-danger" data-i18n="btn_yes">Yes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wipe loading screen -->
+    <div id="wipe-overlay" aria-hidden="true">
+      <span class="wipe-logo"></span>
+      <div class="wipe-spinner"></div>
+      <div class="wipe-label" data-i18n="wipe_label">Cleaning everything</div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" role="status" aria-live="polite" aria-hidden="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+      <span id="toast-text"></span>
+    </div>
+
+    <!-- Right-click context menu (populated by renderer.js) -->
+    <div id="ctx-menu" role="menu" aria-hidden="true"></div>
+
+    <!-- Downloads panel (Firefox-style), anchored under the toolbar button.
+         The list is populated by renderer.js from the live download state. -->
+    <div id="downloads-panel" role="dialog" aria-label="Downloads" aria-hidden="true">
+      <div class="dl-head">
+        <h3 data-i18n="dl_title">Downloads</h3>
+        <button class="dl-clear" data-i18n="dl_clear">Clear</button>
+      </div>
+      <div class="dl-list"></div>
+      <div class="dl-foot">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg>
+        <span data-i18n="dl_note">Files are erased on Clean Slate</span>
+      </div>
+    </div>
+
+    <!-- Notepad panel. The text is ephemeral (wiped on Clean Slate / quit); the
+         gear reveals "Save to .txt" + the delete-on-clear preference. -->
+    <div id="notepad-panel" role="dialog" aria-label="Notepad" aria-hidden="true">
+      <div class="np-head">
+        <h3 id="np-title">Notepad</h3>
+        <button id="np-gear" class="np-icon" title="Notepad settings" aria-label="Notepad settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+        </button>
+        <button id="np-close" class="np-icon" title="Close" aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+        </button>
+      </div>
+      <textarea id="np-text" placeholder="Jot something down. It gets wiped when you clear." spellcheck="false"></textarea>
+      <div id="np-settings" class="np-settings" hidden>
+        <button id="np-save" class="np-save-btn" type="button">Save to .txt</button>
+        <div id="np-saved" class="np-saved" hidden><span id="np-saved-label">Saved to</span> <span id="np-path" class="np-path"></span></div>
+        <div class="np-row">
+          <span id="np-warn" class="np-warn">Delete the .txt file when you clear your device?</span>
+          <button id="np-del-toggle" class="toggle" role="switch" aria-checked="true" aria-label="Delete saved notepad on Clean Slate"></button>
+        </div>
+      </div>
+      <div class="np-foot">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg>
+        <span id="np-foot-text">The notepad is always wiped on Clean Slate</span>
+      </div>
+    </div>
+
+    <!-- Launch splash: calm fade-in logo + a thin arc spinner (prestige boot screen). -->
+    <div id="launch-overlay">
+      <div class="launch-stage">
+        <div class="launch-logo-wrap">
+          <span class="launch-glow" aria-hidden="true"></span>
+          <div class="launch-logo"><!-- logo cloned in by renderer.js --></div>
+        </div>
+        <div class="launch-spinner" aria-hidden="true">
+          <svg viewBox="0 0 36 36">
+            <circle class="launch-track" cx="18" cy="18" r="15.5" />
+            <circle class="launch-arc" cx="18" cy="18" r="15.5" />
+          </svg>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <script src="offline.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

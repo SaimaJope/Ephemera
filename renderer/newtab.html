@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+  <title>New Tab</title>
+  <link rel="stylesheet" href="newtab.css" />
+</head>
+<body>
+  <!-- Beautiful mode: a faint, mouse-reactive dust field painted behind the page
+       (started by newtab.js only when beautiful mode is on). Sits below .home. -->
+  <canvas id="nt-dust" aria-hidden="true"></canvas>
+
+  <main class="home">
+    <div class="logo-wrap">
+    <span class="logo"></span>
+    </div>
+
+    <form id="search-form" class="search" autocomplete="off">
+      <span class="search-shield" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+          <path d="m9 12 2 2 4-4" />
+        </svg>
+      </span>
+      <input id="search-input" type="text" spellcheck="false" autocomplete="off" enterkeyhint="search"
+             placeholder="Search" aria-label="Search" autofocus />
+      <button type="submit" class="search-go" aria-label="Search">
+        <svg viewBox="0 0 24 24"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+      </button>
+    </form>
+
+    <p class="funfact" id="funfact" aria-live="polite">
+      <span class="funfact-label" id="funfact-label">Fun fact</span>
+      <span class="funfact-text" id="funfact-text"></span>
+    </p>
+  </main>
+
+  <!-- Fake fast-load screen: shown on ~1 in 10 new tabs for a fraction of a
+       second (see newtab.js). Pure theatre, sits over the page background. -->
+  <div id="nt-loader" aria-hidden="true">
+    <div class="nt-bar"><span class="nt-bar-fill"></span></div>
+  </div>
+
+  <script src="facts.js"></script>
+  <script src="newtab.js"></script>
+</body>
+</html>

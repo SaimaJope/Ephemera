@@ -1,0 +1,1025 @@
+/* ============================================================================
+   Ephemera chrome stylesheet. Flat-with-depth dark widget language: dark
+   charcoal surfaces, 1px --border hairlines, a faint --highlight top edge on
+   raised elements, 6px radii, restrained shadows, no glows. ONE accent
+   (#5ca7fb) carries every state; red is reserved for the wipe, green for success.
+   ========================================================================== */
+
+@font-face {
+  font-family: 'Google Sans Flex';
+  font-weight: 1 1000; font-style: normal; font-display: block;
+  src: url('fonts/GoogleSansFlex.woff2') format('woff2');
+}
+
+:root {
+  --bg:        #1b1e24;   /* panel / deepest layer */
+  --surface:   #21262d;   /* titlebar + toolbar + window chrome */
+  --surface-2: #2a2f38;   /* inset fields, hover states */
+  --border:    #353b45;
+  --text:      #d6dadf;   /* soft off-white - NEVER pure #fff */
+  --muted:     #8b93a1;
+  --accent:    #b07cff;   /* signature accent, carries ALL state (JS overrides) */
+  --accent-rgb: 176, 124, 255;
+  --danger:    #fa4b4b;   /* the Clean Slate panic button */
+  --danger-rgb: 250, 75, 75;
+  --green:     #18b218;
+  --selection:      #2d6ed6;
+  --selection-soft: rgba(45, 110, 214, 0.18);
+  --radius: 6px;
+
+  /* derived depth tokens */
+  --highlight:   rgba(255, 255, 255, 0.045);
+  --shadow-1:    0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-2:    0 8px 24px rgba(0, 0, 0, 0.5);
+  --accent-soft: rgba(176, 124, 255, 0.14);
+  --active:      #313845;
+
+  /* Fine fractal-noise tile, overlaid at low opacity to DITHER large gradients
+     so they never 8-bit band (used by the launch + wipe screens). */
+  --dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='ln'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23ln)' opacity='0.05'/%3E%3C/svg%3E");
+
+  --ui:   'Google Sans Flex', system-ui, 'Segoe UI', sans-serif;
+  --mono: 'Google Sans Flex', system-ui, 'Segoe UI', sans-serif;
+  --t: 120ms ease;
+}
+
+/* ============================================================================
+   Themes (semi-hidden; cycled by clicking the wordmark). 'normal' is the :root
+   above - the signature charcoal, the default. The two blocks below only
+   re-point the colour tokens, so every tokenised surface re-themes for free; the
+   accent is set separately by JS and is untouched. The full-screen brand moments
+   (launch splash, wipe loader, offline screen) deliberately STAY dark in every
+   theme - they are cinematic, not chrome.
+   ========================================================================== */
+
+/* DARK: a deeper, near-black variant - blacker and higher-contrast than normal. */
+body.theme-dark {
+  --bg:        #0b0d11;   /* near-black */
+  --surface:   #121519;
+  --surface-2: #1a1e25;
+  --border:    #272d36;
+  --text:      #e4e8ee;
+  --muted:     #828c9b;
+  --highlight: rgba(255, 255, 255, 0.05);
+  --active:    #1e242d;
+  --shadow-1:  0 1px 2px rgba(0, 0, 0, 0.55);
+  --shadow-2:  0 10px 30px rgba(0, 0, 0, 0.70);
+}
+
+/* LIGHT: soft grey backdrop, white raised chrome, near-black soft text. Raised =
+   lighter (white) over the grey body - the same flat-with-depth language inverted. */
+body.theme-light {
+  --bg:        #e9ebef;   /* app backdrop (deepest) - soft grey, never pure white */
+  --surface:   #ffffff;   /* titlebar / toolbar / panels (raised) */
+  --surface-2: #e6e9ee;   /* inset fields, hover */
+  --border:    #d4d8e0;
+  --text:      #1c2026;   /* near-black soft - NEVER pure #000 */
+  --muted:     #5f6776;
+  --highlight: rgba(255, 255, 255, 0.9);   /* white top edge ~ neutral on a white surface */
+  --active:    #dbe0e8;
+  --shadow-1:  0 1px 2px rgba(20, 28, 45, 0.10);
+  --shadow-2:  0 12px 30px rgba(20, 28, 45, 0.16);
+  --selection: #2d6ed6;
+  --selection-soft: rgba(45, 110, 214, 0.16);
+}
+
+/* Light-mode fixes for the handful of values hardcoded for dark: the flat (mono)
+   window buttons and the scrollbar-thumb hover. Everything else rides the tokens. */
+body.theme-light.winctl-mono .winbtn { background: #ced3db; }
+body.theme-light.winctl-mono .winbtn svg { stroke: #4b515c; }
+body.theme-light.winctl-mono .winbtn.min:hover,
+body.theme-light.winctl-mono .winbtn.max:hover { background: #bdc3cd; }
+body.theme-light.winctl-mono .winbtn.min:hover svg,
+body.theme-light.winctl-mono .winbtn.max:hover svg { stroke: var(--text); }
+body.theme-light ::-webkit-scrollbar-thumb:hover { background: #b4bbc6; }
+
+/* The wordmark is the (unlabelled) theme toggle - a pointer cursor + a faint
+   accent on hover are the only hints that it does anything. */
+.brand { cursor: pointer; }
+.brand-name { transition: color 120ms ease; }
+.brand:hover .brand-name { color: var(--accent); }
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--ui);
+  font-size: 13px;
+  line-height: 1.3;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+::selection { background: var(--selection-soft); color: var(--text); }
+
+button { font-family: inherit; color: inherit; background: none; border: none; cursor: default; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+#app {
+  display: grid;
+  grid-template-rows: 32px 34px 42px 1fr;
+  grid-template-columns: minmax(0, 1fr); /* lock the single column to the viewport so the tab row can't widen the window */
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* ── Titlebar ────────────────────────────────────────────────────────────── */
+#titlebar {
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.brand { display: flex; align-items: center; gap: 8px; -webkit-app-region: no-drag; }
+/* Logo mark: blue regions are an --accent fill masked to the disc/swirl shape,
+   with the white beetle on top. Shared by the titlebar mark and the wipe screen. */
+.brand-mark, .wipe-logo { position: relative; display: block; }
+.brand-mark { width: 16px; height: 16px; }
+.brand-mark::before, .brand-mark::after,
+.wipe-logo::before, .wipe-logo::after { content: ''; position: absolute; inset: 0; }
+.brand-mark::before, .wipe-logo::before {
+  background: var(--accent);
+  -webkit-mask: url(../assets/beetle-blue-mask.png) center / contain no-repeat;
+          mask: url(../assets/beetle-blue-mask.png) center / contain no-repeat;
+}
+.brand-mark::after, .wipe-logo::after {
+  background: url(../assets/beetle-white.png) center / contain no-repeat;
+}
+.brand-name { font-size: 12px; font-weight: 700; letter-spacing: 0; color: var(--text); }
+.drag-spacer { flex: 1; height: 100%; }
+
+/* Window controls, two styles chosen in Settings.
+   Default = coloured circles; body.winctl-mono = flat grey circles. */
+.win-controls { display: flex; align-items: center; gap: 8px; -webkit-app-region: no-drag; }
+.winbtn {
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  transition: background var(--t), filter var(--t);
+}
+.winbtn svg {
+  width: 8px; height: 8px;
+  fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;
+  opacity: 0; transition: opacity var(--t);
+}
+.winbtn .ico-restore { display: none; }
+body.maximized .winbtn.max .ico-max { display: none; }
+body.maximized .winbtn.max .ico-restore { display: block; }
+
+/* Coloured-circle variant (default) */
+.winbtn.close { background: #ff5f57; }
+.winbtn.min   { background: #febc2e; }
+.winbtn.max   { background: #28c840; }
+.winbtn { border: 0.5px solid rgba(0, 0, 0, 0.16); }
+.winbtn svg { stroke: rgba(0, 0, 0, 0.55); }
+.win-controls:hover .winbtn svg { opacity: 1; }
+.winbtn:hover { filter: brightness(1.12); }
+
+/* Flat-grey variant */
+body.winctl-mono .winbtn { background: #424954; border: none; }
+body.winctl-mono .winbtn svg { stroke: var(--bg); }
+body.winctl-mono .win-controls:hover .winbtn svg { opacity: 0.75; }
+body.winctl-mono .winbtn:hover { filter: none; }
+body.winctl-mono .winbtn.min:hover,
+body.winctl-mono .winbtn.max:hover { background: #565d69; }
+body.winctl-mono .winbtn.min:hover svg,
+body.winctl-mono .winbtn.max:hover svg { stroke: var(--text); opacity: 0.9; }
+body.winctl-mono .winbtn.close:hover { background: var(--danger); }
+body.winctl-mono .winbtn.close:hover svg { stroke: #fff; opacity: 1; }
+
+/* ── Tab strip ───────────────────────────────────────────────────────────── */
+#tabstrip {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 0 6px;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+#tabs {
+  display: flex; align-items: stretch; flex: 1 1 auto; min-width: 0; gap: 2px;
+  overflow: hidden;
+}
+#tabs::-webkit-scrollbar { height: 0; }
+#newtab-btn { flex: 0 0 auto; }
+/* The "+" sits right after the last tab; the drag-fill eats the rest of the strip. */
+.tabstrip-fill { flex: 1 1 0; align-self: stretch; -webkit-app-region: drag; min-width: 0; }
+
+.tab {
+  -webkit-app-region: no-drag;
+  display: flex; align-items: center; gap: 8px;
+  align-self: flex-end;
+  height: 28px;
+  padding: 0 6px 0 10px;
+  flex: 1 1 0; min-width: 34px; max-width: 240px;   /* Chrome-style: equal width, shrink down to favicon-only */
+  background: transparent;
+  color: var(--muted);
+  border-radius: var(--radius) var(--radius) 0 0;
+  position: relative;
+  transition: background var(--t), color var(--t);
+}
+.tab:hover { background: var(--surface-2); color: var(--text); }
+.tab.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: inset 0 2px 0 var(--accent), inset 0 3px 0 var(--highlight);
+}
+/* Beautiful mode: a closed tab collapses out instead of vanishing. The width cap
+   animates to 0 so neighbours flow in to fill the gap. Scoped to .closing, so the
+   normal (instant) close path stays untouched. */
+.tab.closing {
+  max-width: 0; min-width: 0;
+  padding-left: 0; padding-right: 0;
+  opacity: 0;
+  transform: scale(0.92);
+  overflow: hidden;
+  pointer-events: none;
+  transition: max-width 200ms ease, min-width 200ms ease,
+              padding 200ms ease, opacity 150ms ease, transform 200ms ease;
+}
+.tab-favicon { width: 14px; height: 14px; flex: 0 0 auto; border-radius: 3px; background-size: cover; background-position: center; background-repeat: no-repeat; }
+.tab-favicon.is-default { background: var(--surface-2); }
+.tab-favicon.is-newtab {
+  /* Masked so the bug mark takes the accent colour (follows --accent live). */
+  background-color: var(--accent);
+  -webkit-mask: url('../assets/newtab-icon.svg') center / 13px 13px no-repeat;
+          mask: url('../assets/newtab-icon.svg') center / 13px 13px no-repeat;
+  opacity: 0.95;
+}
+.tab-spinner {
+  width: 13px; height: 13px; flex: 0 0 auto;
+  border: 2px solid var(--accent-soft); border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.tab-title { flex: 1; min-width: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tab-close {
+  width: 17px; height: 17px; flex: 0 0 auto;
+  border-radius: 4px;
+  display: grid; place-items: center;
+  opacity: 0; transition: opacity var(--t), background var(--t);
+}
+.tab:hover .tab-close, .tab.active .tab-close { opacity: 0.6; }
+.tab-close:hover { background: var(--active); opacity: 1; }
+.tab-close svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+
+/* Chrome-style graceful collapse as tabs get narrow. The density classes are set
+   by renderer.js from the measured per-tab width (container queries don't play
+   nicely with the tabs' flex sizing). */
+#tabs.tabs-narrow .tab-close { opacity: 0; pointer-events: none; }
+#tabs.tabs-narrow .tab:hover .tab-close,
+#tabs.tabs-narrow .tab.active .tab-close { opacity: 0.6; pointer-events: auto; }
+
+#tabs.tabs-mini .tab { padding: 0; gap: 0; justify-content: center; }
+#tabs.tabs-mini .tab-title { display: none; }
+#tabs.tabs-mini .tab-close { display: none; }
+/* On hover, swap the centred favicon for the close button. */
+#tabs.tabs-mini .tab:hover .tab-favicon,
+#tabs.tabs-mini .tab:hover .tab-spinner { display: none; }
+#tabs.tabs-mini .tab:hover .tab-close { display: grid; opacity: 0.85; pointer-events: auto; }
+
+/* ── Icon buttons (toolbar nav + new tab + settings) ──────────────────────── */
+.iconbtn {
+  -webkit-app-region: no-drag;
+  width: 30px; height: 30px;
+  border-radius: var(--radius);
+  display: grid; place-items: center;
+  color: var(--muted);
+  transition: background var(--t), color var(--t);
+}
+.iconbtn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.iconbtn:hover:not(:disabled) { background: var(--surface-2); color: var(--accent); }
+.iconbtn:active:not(:disabled) { background: var(--active); }
+.iconbtn:disabled { opacity: 0.35; }
+.iconbtn.newtab { width: 28px; height: 28px; align-self: center; }
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────── */
+#toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.nav { display: flex; align-items: center; gap: 2px; }
+
+.ico-stop { display: none; }
+#nav-reload.loading .ico-reload { display: none; }
+#nav-reload.loading .ico-stop { display: block; }
+
+#omnibox {
+  -webkit-app-region: no-drag;
+  flex: 1;
+  display: flex; align-items: center; gap: 9px;
+  height: 30px;
+  padding: 0 11px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-top-color: var(--highlight);
+  border-radius: var(--radius);
+  transition: border-color var(--t), box-shadow var(--t);
+}
+#omnibox:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+#omnibox-shield { display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); }
+#omnibox-shield svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+#address {
+  flex: 1; min-width: 0; height: 100%;
+  border: none; outline: none; background: transparent;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  caret-color: var(--accent);
+  user-select: text; cursor: text;
+}
+#address::placeholder { color: var(--muted); font-family: var(--mono); }
+/* Omnibox koan easter egg (see renderer.js showKoan): the reply shows dim and
+   italic for a beat, then the field forgets it. */
+#address.koan { font-style: italic; color: var(--muted); opacity: 0.72; }
+
+/* Right-hand tools. */
+.tools { display: flex; align-items: center; gap: 4px; }
+
+/* Tracker counter - a quiet Fira Code chip (no animation). */
+.pill {
+  -webkit-app-region: no-drag;
+  display: flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 9px;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  transition: background var(--t), color var(--t);
+}
+.pill svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.pill:hover { background: var(--surface-2); }
+.pill.has-blocks svg { stroke: var(--accent); }
+#tracker-count { font-variant-numeric: tabular-nums; min-width: 7px; text-align: center; display: inline-block; }
+.pill.has-blocks #tracker-count { color: var(--accent); }
+body.no-counter #tracker-pill { display: none; }
+
+/* ── Beautiful mode: the tracker counter comes alive ─────────────────────────
+   While it has blocks, the pill breathes a faint accent ring; each newly blocked
+   tracker pops the number and fires an accent ring outward from the pill. All of
+   it is scoped to body.beautiful, so the normal flat counter is untouched. */
+#tracker-pill { position: relative; }
+@keyframes tk-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
+  50%      { box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.10); }
+}
+@keyframes tk-bump {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.55); color: #fff; }
+  100% { transform: scale(1); }
+}
+@keyframes tk-ring {
+  0%   { opacity: 0.55; transform: scale(0.55); }
+  100% { opacity: 0;    transform: scale(1.9); }
+}
+body.beautiful #tracker-pill.has-blocks { animation: tk-breathe 3.2s ease-in-out infinite; }
+body.beautiful #tracker-count.tk-bump   { animation: tk-bump 520ms cubic-bezier(0.3, 1.5, 0.5, 1); }
+body.beautiful #tracker-pill.tk-tick::after {
+  content: ''; position: absolute; inset: -3px;
+  border-radius: inherit;
+  border: 1.5px solid rgba(var(--accent-rgb), 0.7);
+  pointer-events: none;
+  animation: tk-ring 600ms ease-out forwards;
+}
+
+/* Clean Slate - default 'subtle' (muted icon, danger on hover); 'button'
+   variant (body.cleanslate-button) is the deliberate red-bordered control. */
+#clean-slate {
+  -webkit-app-region: no-drag;
+  display: flex; align-items: center; gap: 7px;
+  height: 28px; padding: 0 8px;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+  font-size: 12px; font-weight: 700;
+  transition: background var(--t), color var(--t), border-color var(--t);
+}
+#clean-slate svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+#clean-slate .cs-label { display: none; }
+#clean-slate:hover { background: rgba(var(--danger-rgb), 0.14); color: var(--danger); }
+#clean-slate:active { background: var(--danger); color: #fff; }
+#clean-slate.firing { animation: firing 0.3s ease; }
+@keyframes firing { 40% { transform: scale(0.94); } 100% { transform: scale(1); } }
+
+body.cleanslate-button #clean-slate {
+  padding: 0 11px;
+  color: var(--danger);
+  border-color: rgba(var(--danger-rgb), 0.5);
+}
+body.cleanslate-button #clean-slate .cs-label { display: inline; }
+body.cleanslate-button #clean-slate:hover { background: rgba(var(--danger-rgb), 0.16); }
+body.cleanslate-button #clean-slate:active { background: var(--danger); color: var(--text); }
+
+/* ── Web content ─────────────────────────────────────────────────────────── */
+#views { position: relative; background: var(--bg); overflow: hidden; }
+#views webview { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg); visibility: hidden; }
+/* A webview is shown only once it is BOTH the active tab AND has painted a frame
+   (.ready, latched on first paint). Until then the dark #views backdrop shows
+   through, so a brand-new tab never flashes Chromium's white pre-paint surface. */
+#views webview.active.ready { visibility: visible; }
+#views::after {
+  content: ''; position: absolute; inset: 0;
+  background: var(--bg); opacity: 0; pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+#views.wiping::after { opacity: 0.65; }
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+#toast {
+  position: fixed; left: 50%; bottom: 22px;
+  transform: translate(-50%, 10px);
+  display: flex; align-items: center; gap: 9px;
+  max-width: 80vw; padding: 10px 15px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--mono); font-size: 12px;
+  box-shadow: var(--shadow-2);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 60;
+}
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+#toast svg { width: 15px; height: 15px; fill: none; stroke: var(--green); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── Settings overlay ────────────────────────────────────────────────────── */
+#settings-overlay { position: fixed; inset: 0; z-index: 80; display: none; }
+#settings-overlay.open { display: block; }
+/* no-drag: the panel overlaps the titlebar's drag region, so without this the
+   OS swallows clicks on the close button (and scrim) as window-drags. */
+.settings-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.5); -webkit-app-region: no-drag; }
+.settings-panel {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: 380px; max-width: 92vw;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  display: flex; flex-direction: column;
+  animation: slidein 0.18s ease;
+  -webkit-app-region: no-drag;
+}
+@keyframes slidein { from { transform: translateX(16px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+.settings-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.settings-head h2 { font-size: 14px; font-weight: 700; color: var(--text); }
+#settings-close { width: 26px; height: 26px; border-radius: var(--radius); display: grid; place-items: center; color: var(--muted); transition: background var(--t), color var(--t); }
+#settings-close:hover { background: var(--surface-2); color: var(--text); }
+#settings-close svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.settings-body { flex: 1; overflow-y: auto; padding: 8px 16px 24px; }
+.settings-section { margin-top: 18px; }
+.settings-section h3 {
+  font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 1px;
+  color: var(--muted); margin-bottom: 8px;
+}
+.set-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.set-row:first-of-type { border-top: none; }
+.set-label { font-size: 12.5px; color: var(--text); }
+.set-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* segmented control */
+.seg { display: inline-flex; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.seg button { padding: 5px 11px; font-size: 11.5px; color: var(--muted); transition: background var(--t), color var(--t); }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button:hover { color: var(--text); }
+.seg button.active { background: var(--accent-soft); color: var(--accent); }
+
+/* toggle switch */
+.toggle { width: 38px; height: 21px; border-radius: 11px; background: var(--bg); border: 1px solid var(--border); position: relative; transition: background var(--t), border-color var(--t); flex: 0 0 auto; }
+.toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: var(--muted); transition: transform var(--t), background var(--t); }
+/* On reads as clearly filled (solid accent track + light knob), not just a faint
+   tinted track that's hard to tell from off against the dark surface. */
+.toggle[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
+.toggle[aria-checked="true"]::after { transform: translateX(17px); background: #f4f6fb; }
+
+/* colour swatches */
+.swatches { display: inline-flex; gap: 8px; }
+.swatch { width: 20px; height: 20px; border-radius: 50%; background: var(--sw); border: 2px solid transparent; transition: transform var(--t); }
+.swatch:hover { transform: scale(1.12); }
+.swatch.active { border-color: var(--text); }
+
+/* select */
+.select {
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 5px 9px; font-family: var(--ui); font-size: 12px;
+}
+.select:focus-visible { outline: 2px solid var(--accent); }
+
+/* ── Clean Slate confirmation ────────────────────────────────────────────── */
+#confirm-overlay { position: fixed; inset: 0; z-index: 90; display: none; }
+#confirm-overlay.show { display: block; }
+.confirm-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55); }
+.confirm-card {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 340px; max-width: 88vw;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+  padding: 24px 22px 18px;
+  text-align: center;
+  animation: pop 0.16s ease;
+}
+@keyframes pop { from { transform: translate(-50%, -50%) scale(0.96); opacity: 0.4; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+.confirm-icon {
+  display: grid; place-items: center;
+  width: 46px; height: 46px; margin: 0 auto 14px;
+  border-radius: 50%;
+  background: rgba(var(--danger-rgb), 0.13);
+  color: var(--danger);
+}
+.confirm-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.confirm-card h2 { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 7px; }
+.confirm-card p { font-size: 12.5px; color: var(--muted); line-height: 1.45; margin-bottom: 20px; }
+.confirm-actions { display: flex; gap: 10px; justify-content: center; }
+.btn-secondary, .btn-danger {
+  height: 34px; min-width: 92px; padding: 0 18px;
+  border-radius: var(--radius); font-size: 12.5px; font-weight: 700;
+  transition: background var(--t), color var(--t), border-color var(--t);
+}
+.btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--active); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #e23b3b; }
+
+/* ── Wipe loading screen ─────────────────────────────────────────────────── */
+#wipe-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  gap: 24px;
+  /* Same themed near-black as the launch splash so the wipe reads as one family;
+     the ::after noise dithers the bloom so it can't band. */
+  background:
+    radial-gradient(circle at 50% 45%,
+      rgba(var(--accent-rgb), 0.20) 0%,
+      rgba(var(--accent-rgb), 0.11) 28%,
+      rgba(var(--accent-rgb), 0.05) 50%,
+      rgba(var(--accent-rgb), 0.02) 70%,
+      transparent 86%),
+    color-mix(in srgb, var(--accent) 10%, #121015);
+  opacity: 0; transition: opacity 0.25s ease;
+}
+#wipe-overlay::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: var(--dither);
+}
+#wipe-overlay.show { display: flex; opacity: 1; }
+.wipe-logo { width: 64px; height: 64px; animation: wipepulse 1.5s ease-in-out infinite; }
+.wipe-spinner {
+  width: 30px; height: 30px;
+  border: 2.5px solid rgba(var(--accent-rgb), 0.22);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.wipe-label {
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: 2.5px;
+  text-transform: uppercase; color: var(--muted);
+}
+@keyframes wipepulse { 0%, 100% { opacity: 0.85; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+
+/* ── Launch splash (prestige boot screen: calm fade-in logo + thin arc spinner) ─ */
+#launch-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  display: grid; place-items: center;
+  /* Themed boot canvas: a near-black tinted by the live --accent (so it never
+     reads as cold navy on a warm theme) with a wide accent bloom ramped through
+     many stops so it lights most of the screen. The noise overlay (::after)
+     dithers it so the gradient never 8-bit bands. */
+  background:
+    radial-gradient(circle at 50% 46%,
+      rgba(var(--accent-rgb), 0.26) 0%,
+      rgba(var(--accent-rgb), 0.17) 19%,
+      rgba(var(--accent-rgb), 0.10) 37%,
+      rgba(var(--accent-rgb), 0.05) 56%,
+      rgba(var(--accent-rgb), 0.02) 73%,
+      transparent 88%),
+    color-mix(in srgb, var(--accent) 11%, #121015);
+}
+#launch-overlay::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: var(--dither);
+}
+#launch-overlay.hide { animation: splash-out 0.5s ease forwards; pointer-events: none; }
+#launch-overlay.gone { display: none; }
+
+.launch-stage { display: flex; flex-direction: column; align-items: center; gap: 42px; }
+.launch-logo-wrap { position: relative; z-index: 0; display: grid; place-items: center; }
+.launch-glow {
+  position: absolute; z-index: -1; width: 210px; height: 210px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.22) 0%, transparent 62%);
+  filter: blur(6px); pointer-events: none;
+  animation: splash-glow 3.2s ease-in-out infinite;
+}
+.launch-logo {
+  width: 132px; height: 132px;
+  opacity: 0; transform: scale(0.97);
+  /* Strong layered drop-shadow: a wide soft cast plus a tighter close one so the
+     mark reads as floating well above the boot canvas. drop-shadow follows the
+     masked disc alpha, so the shadow hugs the logo instead of a square box. */
+  filter:
+    drop-shadow(0 8px 18px rgba(0, 0, 0, 0.38))
+    drop-shadow(0 2px 6px rgba(0, 0, 0, 0.28));
+  animation: splash-fade 0.85s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+#launch-overlay .brand-mark { width: 132px; height: 132px; }
+
+.launch-spinner { width: 34px; height: 34px; opacity: 0; animation: splash-fade-in 0.6s ease-out 0.4s forwards; }
+.launch-spinner svg { width: 34px; height: 34px; display: block; animation: spin 1.3s linear infinite; transform-origin: 50% 50%; }
+.launch-track { fill: none; stroke: rgba(255, 255, 255, 0.09); stroke-width: 3; }
+.launch-arc   { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 26 72; }
+
+@keyframes splash-fade    { to { opacity: 1; transform: scale(1); } }
+@keyframes splash-fade-in { to { opacity: 1; } }
+@keyframes splash-glow    { 0%, 100% { opacity: 0.6; transform: scale(0.96); } 50% { opacity: 1; transform: scale(1.04); } }
+@keyframes splash-out     { to { opacity: 0; transform: scale(1.015); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .launch-logo { animation: none; opacity: 1; transform: none; }
+  .launch-glow { animation: none; opacity: 0.8; }
+  .launch-spinner { animation: none; opacity: 1; }
+  #launch-overlay.hide { animation: none; opacity: 0; transition: opacity 0.3s ease; }
+}
+
+/* ── Offline screen (no internet connection) ─────────────────────────────────
+   Raised over the content area when a main-frame load fails because the machine
+   is offline, in place of Chromium's default error page. A quiet terminal frame
+   sits above a low-resolution Space Invaders canvas; everything is painted from
+   the app tokens (the cannon and shots follow the live --accent), so it reads as
+   a hidden system screen, not a separate game. */
+#offline-screen {
+  position: absolute; inset: 0; z-index: 5;
+  display: none;
+  flex-direction: column; align-items: center; justify-content: safe center;
+  padding: 22px 24px;
+  background: #0c0f14;   /* flat dark "screen" tone, no glow; depth comes from the vignette below */
+  color: var(--text);
+  overflow: auto;        /* scroll rather than clip the Retry button at short window heights */
+  outline: none;
+}
+#offline-screen.show { display: flex; }
+#offline-screen:focus { outline: none; }
+#offline-screen::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 170px rgba(0, 0, 0, 0.55);
+}
+
+.offline-inner {
+  position: relative; z-index: 1;
+  width: min(520px, 94%);
+  display: flex; flex-direction: column; align-items: center;
+  gap: 13px; text-align: center;
+}
+
+/* Terminal prompt eyebrow: ephemera@offline:~$ ping … with a blinking caret. */
+.offline-term {
+  display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.2px;
+  color: var(--muted);
+}
+.offline-term .u { color: var(--accent); }
+.offline-term .s { color: var(--muted); opacity: 0.7; }
+.offline-cmd { color: var(--text); margin-left: 6px; }
+.offline-cursor {
+  display: inline-block; width: 6px; height: 12px; margin-left: 5px;
+  background: var(--accent); transform: translateY(1px);
+  animation: offcursor 1.05s steps(1, end) infinite;
+}
+@keyframes offcursor { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+
+.offline-title { font-size: 19px; font-weight: 700; letter-spacing: 0.2px; color: var(--text); }
+.offline-sub { font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.offline-code {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.4px;
+  color: var(--muted);
+  padding: 2px 8px; border: 1px solid var(--border); border-radius: 5px;
+  background: var(--highlight);
+}
+
+/* The scene: a low-res canvas scaled up with nearest-neighbour sampling. */
+.offline-stage {
+  position: relative; margin-top: 4px;
+  width: min(440px, 88%);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: #0d1015;
+  box-shadow: var(--shadow-1), inset 0 1px 0 var(--highlight);
+  overflow: hidden;
+}
+.offline-canvas {
+  display: block; width: 100%; height: auto;
+  aspect-ratio: 240 / 150;
+  image-rendering: crisp-edges; image-rendering: pixelated;
+}
+.offline-scan {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0.55;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, 0.16) 3px);
+}
+.offline-score {
+  position: absolute; top: 6px; right: 9px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px;
+  color: var(--muted); font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+  opacity: 0; transition: opacity 200ms ease;   /* revealed by JS once the player scores */
+}
+
+.offline-foot { display: flex; align-items: center; gap: 16px; margin-top: 6px; }
+.offline-hint {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.2px; color: var(--muted);
+}
+.offline-retry {
+  height: 30px; padding: 0 16px;
+  border-radius: var(--radius);
+  background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--border);
+  font-size: 12px; font-weight: 700;
+  transition: background var(--t), color var(--t), border-color var(--t);
+}
+.offline-retry:hover { background: var(--active); border-color: var(--accent); color: var(--accent); }
+.offline-retry:active { background: var(--accent-soft); }
+
+/* Calmer offline screen when motion is reduced or high-performance mode is on. */
+@media (prefers-reduced-motion: reduce) {
+  .offline-cursor { animation: none; opacity: 0.85; }
+}
+body.high-perf .offline-scan,
+body.high-perf #offline-screen::after { display: none; }
+body.high-perf .offline-cursor { animation: none; opacity: 0.85; }
+
+/* ── Scrollbars ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--active); border-radius: 6px; border: 3px solid var(--surface); }
+::-webkit-scrollbar-thumb:hover { background: #3c4452; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ── High-performance mode ──────────────────────────────────────────────────
+   Trades visual polish for cheap paint/composite/JS. UX stays intact: every
+   control still works and stays responsive, and the functional loading spinners
+   keep turning. Only decorative motion, blur, drop-shadows, glows and the
+   feTurbulence noise are dropped. */
+body.high-perf {
+  --shadow-1: 0 0 0 transparent;   /* neutralise every blurred shadow that flows */
+  --shadow-2: 0 0 0 transparent;   /* through these tokens (a valid zero-cost layer) */
+}
+body.high-perf *,
+body.high-perf *::before,
+body.high-perf *::after {
+  transition: none !important;
+  animation: none !important;
+  will-change: auto !important;
+}
+/* Keep the genuinely functional indicators (loading / progress) moving. */
+body.high-perf .tab-spinner { animation: spin 0.7s linear infinite !important; }
+body.high-perf .wipe-spinner { animation: spin 0.8s linear infinite !important; }
+body.high-perf .launch-spinner svg { animation: spin 1.3s linear infinite !important; }
+body.high-perf .dl-bar.indeterminate > i { animation: dlindef 1.1s ease-in-out infinite !important; }
+/* Boot + wipe screens still show, minus the costly noise dither, blur and glow. */
+body.high-perf #launch-overlay::after,
+body.high-perf #wipe-overlay::after,
+body.high-perf .launch-glow { display: none !important; }
+body.high-perf .launch-logo { filter: none !important; opacity: 1 !important; transform: none !important; }
+body.high-perf .launch-spinner { opacity: 1 !important; }
+
+/* ── Find in page (Ctrl+F) ───────────────────────────────────────────────── */
+#findbar {
+  position: fixed; top: 108px; right: 16px; z-index: 70;
+  -webkit-app-region: no-drag;
+  display: none; align-items: center; gap: 4px;
+  padding: 6px 6px 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  box-shadow: var(--shadow-2);
+}
+#findbar.show { display: flex; }
+#find-input {
+  width: 200px; height: 28px;
+  border: none; outline: none; background: transparent;
+  color: var(--text); font-size: 13px; user-select: text; cursor: text;
+}
+#find-input::placeholder { color: var(--muted); }
+#find-count { font-size: 12px; color: var(--muted); min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; padding-right: 4px; }
+.find-btn {
+  width: 28px; height: 28px; flex: 0 0 auto;
+  border-radius: 5px; display: grid; place-items: center;
+  color: var(--muted); transition: background var(--t), color var(--t);
+}
+.find-btn:hover { background: var(--surface-2); color: var(--accent); }
+.find-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── Notepad panel (ephemeral; export to .txt) ───────────────────────────── */
+#notepad-panel {
+  position: fixed; top: 108px; right: 12px; z-index: 75;
+  width: min(420px, 92vw); max-height: calc(100vh - 124px);
+  display: none; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; box-shadow: var(--shadow-2); overflow: hidden;
+}
+#notepad-panel.open { display: flex; animation: ctxpop 0.12s ease; }
+.np-head { display: flex; align-items: center; gap: 6px; padding: 9px 8px 9px 14px; border-bottom: 1px solid var(--border); }
+.np-head h3 { flex: 1; font-size: 13px; font-weight: 700; color: var(--text); }
+.np-icon { width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center; color: var(--muted); transition: background var(--t), color var(--t); }
+.np-icon:hover { background: var(--surface-2); color: var(--accent); }
+.np-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#np-text {
+  flex: 1; min-height: 300px; resize: none;
+  border: none; outline: none; background: transparent; color: var(--text);
+  padding: 14px; font-family: var(--mono); font-size: 13.5px; line-height: 1.5;
+  user-select: text; cursor: text;
+}
+#np-text::placeholder { color: var(--muted); }
+.np-settings { border-top: 1px solid var(--border); padding: 12px 14px; display: flex; flex-direction: column; gap: 12px; }
+.np-save-btn { align-self: flex-start; padding: 7px 12px; border-radius: 6px; background: var(--surface-2); color: var(--text); border: 1px solid var(--border); font-size: 12.5px; transition: background var(--t), border-color var(--t); }
+.np-save-btn:hover { background: var(--active); border-color: var(--accent); }
+.np-saved { font-size: 11.5px; color: var(--muted); word-break: break-all; }
+.np-saved .np-path { color: var(--text); }
+.np-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.np-warn { font-size: 12.5px; color: var(--accent); font-weight: 600; line-height: 1.35; }
+.np-foot { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11.5px; }
+.np-foot svg { width: 14px; height: 14px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.6; }
+
+/* "Keep it" button shown in the Clean Slate dialog when a notepad .txt is at risk. */
+.np-keep-btn { flex: 0 0 auto; padding: 5px 11px; border-radius: 6px; background: var(--surface-2); color: var(--text); border: 1px solid var(--border); font-size: 12px; white-space: nowrap; transition: background var(--t), border-color var(--t), color var(--t); }
+.np-keep-btn:hover { border-color: var(--accent); color: var(--accent); }
+.np-keep-btn.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+/* ── Right-click context menu (Firefox-inspired, flat-with-depth) ─────────── */
+#ctx-scrim { position: fixed; inset: 0; z-index: 94; display: none; }
+#ctx-scrim.show { display: block; }
+#ctx-menu {
+  position: fixed; z-index: 95;
+  min-width: 216px; max-width: 320px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-2);
+  display: none;
+  font-size: 12.5px;
+  user-select: none;
+  animation: ctxpop 0.1s ease;
+}
+#ctx-menu.show { display: block; }
+@keyframes ctxpop { from { opacity: 0; transform: scale(0.97) translateY(-3px); } to { opacity: 1; transform: none; } }
+.ctx-nav { display: flex; gap: 4px; padding: 2px 2px 4px; }
+.ctx-nav button {
+  flex: 1; height: 32px; border-radius: 6px;
+  display: grid; place-items: center; color: var(--text);
+  transition: background var(--t), color var(--t);
+}
+.ctx-nav button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.ctx-nav button:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
+.ctx-nav button:disabled { opacity: 0.3; }
+.ctx-sep { height: 1px; margin: 5px 8px; background: var(--border); }
+.ctx-item {
+  display: flex; align-items: center; gap: 11px;
+  width: 100%; padding: 8px 10px;
+  border-radius: 6px; color: var(--text);
+  text-align: left; white-space: nowrap;
+  transition: background var(--t), color var(--t);
+}
+.ctx-item:hover { background: var(--accent-soft); color: var(--accent); }
+.ctx-ico { width: 16px; height: 16px; flex: 0 0 auto; display: grid; place-items: center; color: var(--muted); }
+.ctx-item:hover .ctx-ico { color: var(--accent); }
+.ctx-ico svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.ctx-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Downloads ───────────────────────────────────────────────────────────────
+   A toolbar arrow button (hidden until the first download) with a thin progress
+   bar that fills while downloading and a small pop when one completes, plus a
+   Firefox-style drop panel listing each download. Everything follows the live
+   --accent; red stays reserved for the wipe and the "files will be deleted"
+   warning. No count badge - the bar and the panel carry the state. */
+.dl-btn { position: relative; }
+.dl-btn[hidden] { display: none; }            /* beats .iconbtn { display: grid } */
+.dl-btn.active { color: var(--accent); }
+.dl-btn .dl-btn-bar {
+  position: absolute; left: 5px; right: 5px; bottom: 3px; height: 2px;
+  border-radius: 2px; background: var(--surface-2); overflow: hidden;
+  opacity: 0; transition: opacity var(--t); pointer-events: none;
+}
+.dl-btn.active .dl-btn-bar { opacity: 1; }
+.dl-btn .dl-btn-bar > i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 2px; transition: width 0.18s ease; }
+.dl-btn.done-flash svg { animation: dlpop 0.45s ease; }
+@keyframes dlpop { 40% { transform: translateY(2px); } 100% { transform: none; } }
+
+#downloads-panel {
+  position: fixed; z-index: 95;
+  width: 360px; max-width: 92vw;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-2);
+  display: none; overflow: hidden;
+  -webkit-app-region: no-drag;
+  animation: ctxpop 0.12s ease;
+}
+#downloads-panel.show { display: block; }
+.dl-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px; border-bottom: 1px solid var(--border);
+}
+.dl-head h3 { font-size: 13px; font-weight: 700; color: var(--text); }
+.dl-clear {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  padding: 4px 8px; border-radius: 5px;
+  transition: background var(--t), color var(--t);
+}
+.dl-clear:hover { background: var(--surface-2); color: var(--danger); }
+
+.dl-list { max-height: 380px; overflow-y: auto; padding: 4px; }
+.dl-empty { padding: 28px 14px; text-align: center; color: var(--muted); font-size: 12px; }
+
+.dl-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 10px; border-radius: 6px;
+  transition: background var(--t);
+}
+.dl-item:hover { background: var(--surface-2); }
+.dl-ico {
+  width: 30px; height: 30px; flex: 0 0 auto;
+  border-radius: 6px; background: var(--bg); border: 1px solid var(--border);
+  display: grid; place-items: center; color: var(--muted);
+}
+.dl-ico svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.dl-item.done .dl-ico { color: var(--accent); border-color: rgba(var(--accent-rgb), 0.45); }
+.dl-item.failed .dl-ico { color: var(--danger); border-color: rgba(var(--danger-rgb), 0.4); }
+.dl-main { flex: 1; min-width: 0; }
+.dl-name { font-size: 12.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dl-meta { font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dl-item.failed .dl-meta { color: var(--danger); }
+.dl-bar { margin-top: 6px; height: 3px; border-radius: 3px; background: var(--bg); overflow: hidden; }
+.dl-bar > i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width 0.18s ease; }
+.dl-bar.indeterminate > i { width: 34%; animation: dlindef 1.1s ease-in-out infinite; }
+@keyframes dlindef { 0% { transform: translateX(-120%); } 100% { transform: translateX(330%); } }
+
+.dl-actions { display: flex; align-items: center; gap: 1px; flex: 0 0 auto; }
+.dl-act {
+  width: 26px; height: 26px; border-radius: 5px;
+  display: grid; place-items: center; color: var(--muted);
+  transition: background var(--t), color var(--t);
+}
+.dl-act:hover { background: var(--active); color: var(--accent); }
+.dl-act.danger:hover { color: var(--danger); }
+.dl-act svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.dl-foot {
+  display: flex; align-items: center; gap: 7px;
+  padding: 9px 14px; border-top: 1px solid var(--border);
+  color: var(--muted); font-size: 11px;
+}
+.dl-foot svg { width: 13px; height: 13px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Clean Slate confirmation: the "downloaded files will be erased" callout. */
+.confirm-dl-warn {
+  display: flex; align-items: center; gap: 11px; text-align: left;
+  margin: 0 0 18px;
+  padding: 11px 12px; border-radius: var(--radius);
+  background: rgba(var(--danger-rgb), 0.10);
+  border: 1px solid rgba(var(--danger-rgb), 0.32);
+}
+.confirm-dl-warn[hidden] { display: none; }
+.confirm-dl-warn .cdw-ico {
+  width: 30px; height: 30px; flex: 0 0 auto;
+  border-radius: 50%; display: grid; place-items: center;
+  background: rgba(var(--danger-rgb), 0.16); color: var(--danger);
+}
+.confirm-dl-warn .cdw-ico svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.cdw-text { flex: 1; min-width: 0; }
+.cdw-title { font-size: 12px; font-weight: 700; color: var(--danger); }
+.cdw-sub { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+.cdw-count {
+  flex: 0 0 auto; min-width: 22px; height: 22px; padding: 0 7px;
+  border-radius: 11px; background: var(--danger); color: #fff;
+  font-family: var(--mono); font-weight: 700; font-size: 11px; line-height: 22px;
+  text-align: center;
+}

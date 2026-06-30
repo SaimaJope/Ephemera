@@ -1,0 +1,69 @@
+{
+  "name": "ephemera",
+  "productName": "Ephemera",
+  "version": "1.0.0",
+  "description": "A privacy-first, leave-no-trace desktop browser. Ephemeral by design — search freely, then wipe to a clean slate in one click.",
+  "author": "Ephemera",
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "icons": "node scripts/gen-icons.js",
+    "dist": "npm run icons && electron-builder",
+    "dist:win": "npm run icons && electron-builder --win",
+    "dist:mac": "npm run icons && electron-builder --mac",
+    "dist:linux": "npm run icons && electron-builder --linux"
+  },
+  "dependencies": {
+    "@ghostery/adblocker-electron": "^2.18.0",
+    "cross-fetch": "^4.1.0"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "electron": "^31.7.7",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.ephemera.browser",
+    "productName": "Ephemera",
+    "copyright": "Ephemera",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "webview-content.js",
+      "renderer/**/*",
+      "assets/**/*",
+      "!**/*.map",
+      "!**/.DS_Store"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "build/icon.png",
+      "category": "Network"
+    }
+  }
+}

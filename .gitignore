@@ -1,0 +1,10 @@
+node_modules/
+release/
+build/icon.png
+build/icon-source.svg
+*.log
+.DS_Store
+Thumbs.db
+
+# Local Claude Code tooling state (lock files, session scratch)
+.claude/

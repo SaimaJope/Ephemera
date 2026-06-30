@@ -1,0 +1,409 @@
+/* ============================================================================
+   Ephemera new-tab / home page. Dark, rich mood: a near-black navy base with a
+   restrained --accent glow (never a flat blue wash). Flat-with-depth widgets,
+   one accent. The blue is a glow, not a fill. Background switchable in Settings.
+   ========================================================================== */
+
+@font-face {
+  font-family: 'Google Sans Flex';
+  font-weight: 1 1000; font-style: normal; font-display: block;
+  src: url('fonts/GoogleSansFlex.woff2') format('woff2');
+}
+
+:root {
+  --bg:        #1b1e24;
+  --surface:   #21262d;
+  --surface-2: #2a2f38;
+  --border:    #353b45;
+  --text:      #d6dadf;
+  --muted:     #8b93a1;
+  --accent:    #b07cff;
+  --accent-rgb: 176, 124, 255;
+  --highlight:   rgba(255, 255, 255, 0.045);
+  --shadow-1:    0 1px 2px rgba(0, 0, 0, 0.35);
+  --accent-soft: rgba(176, 124, 255, 0.14);
+  /* Logo shadow base shade (rgb triplet) per background; the layered ramp in
+     .logo-wrap::after applies graded alpha for a soft, premium elevation. A faint
+     accent glow (::before) adds lift on dark backgrounds where a dark shadow
+     can't read. */
+  --logo-shade: 2, 4, 10;
+  --ui:   'Google Sans Flex', system-ui, 'Segoe UI', sans-serif;
+  --mono: 'Google Sans Flex', system-ui, 'Segoe UI', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+body {
+  font-family: var(--ui);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+  /* Default 'navy': deep near-black navy with a restrained accent glow. */
+  background:
+    radial-gradient(ellipse 120% 80% at 72% 36%, rgba(var(--accent-rgb), 0.16) 0%, transparent 55%),
+    radial-gradient(ellipse 100% 90% at 16% 88%, rgba(14, 42, 71, 0.55) 0%, transparent 52%),
+    linear-gradient(150deg, #0a0e15 0%, #0f1722 45%, #14233a 100%);
+  background-attachment: fixed;
+}
+
+/* Vignette + ultra-faint noise (kills banding, adds texture). */
+body::after {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 220px rgba(0, 0, 0, 0.45);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+/* Background variants (set by Settings). */
+/* "Colour" background: the whole gradient is built from --accent, so it's a
+   blue wash in blue mode, red in red mode, green in green mode, and so on.
+
+   Premium treatment: a soft spotlight is centred just above the mark, the body
+   stays saturated through the upper two thirds, and the fall-off lands on a
+   DEEP version of the same hue (accent mixed down to ~46%), never a muddy
+   near-black. That single change is what reads as "rich" instead of "cheap":
+   a dark navy/maroon/forest version of the colour, not the colour drowned in
+   black. The vignette (below) is widened and lightened to match. */
+body.bg-blue {
+  background:
+    /* gentle spotlight: a soft lift centred a touch above the logo */
+    radial-gradient(118% 96% at 50% 20%,
+      color-mix(in srgb, var(--accent) 70%, #ffffff) 0%,
+      var(--accent) 33%,
+      transparent 72%),
+    /* rich, saturated body that deepens into the same hue, not into black */
+    linear-gradient(159deg,
+      var(--accent) 0%,
+      color-mix(in srgb, var(--accent) 80%, #0d0b16) 42%,
+      color-mix(in srgb, var(--accent) 62%, #0a0813) 72%,
+      color-mix(in srgb, var(--accent) 46%, #07060e) 100%);
+  background-attachment: fixed;
+  /* Deep cool shade so the mark reads as lifted off the bright colour. */
+  --logo-shade: 3, 7, 17;
+}
+/* Softer, wider vignette on the Colour background so the corners settle into the
+   hue instead of crushing to black (the old 220px / 0.45 frame read as cheap). */
+body.bg-blue::after { box-shadow: inset 0 0 380px rgba(0, 0, 0, 0.20); }
+body.bg-grey {
+  background: var(--bg);
+  --logo-shade: 0, 0, 0;
+}
+body.bg-grey::after { box-shadow: none; }
+
+.home {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 40px 24px 80px;
+}
+
+/* Logo: the blue parts follow --accent (see .logo below). The shadow is cast by
+   a smooth circular pseudo-element (box-shadow), so it stays clean, never low-res. */
+.logo-wrap {
+  position: relative;
+  width: 116px; height: 116px;
+  margin-bottom: 34px;
+  display: grid; place-items: center;
+  /* Stay invisible until the chrome pushes the real accent, then fade in with
+     the correct colour. Otherwise the masked logo paints in the default accent
+     and visibly animates to the right one (a flash on every new tab). */
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+html.accent-ready .logo-wrap { opacity: 1; }
+body.high-perf .logo-wrap { transition: none; }
+@media (prefers-reduced-motion: reduce) { .logo-wrap { transition: none; } }
+.logo-wrap::before {
+  content: '';
+  position: absolute; inset: -2%;
+  z-index: -2;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.16) 0%, transparent 64%);
+}
+.logo-wrap::after {
+  content: '';
+  position: absolute; inset: 7%;
+  z-index: -1;
+  border-radius: 50%;
+  box-shadow:
+    0 2px 5px   rgba(var(--logo-shade), 0.24),
+    0 6px 13px  rgba(var(--logo-shade), 0.20),
+    0 14px 29px rgba(var(--logo-shade), 0.22),
+    0 26px 55px rgba(var(--logo-shade), 0.29);
+  transition: box-shadow 260ms ease;
+}
+/* Two flat-colour raster layers composited: the blue regions are an --accent
+   fill masked by the disc/swirl shape, with the white beetle painted on top. */
+.logo { width: 116px; height: 116px; display: block; position: relative; }
+.logo::before, .logo::after { content: ''; position: absolute; inset: 0; }
+.logo::before {
+  background: var(--accent);
+  -webkit-mask: url(../assets/beetle-blue-mask.png) center / contain no-repeat;
+          mask: url(../assets/beetle-blue-mask.png) center / contain no-repeat;
+}
+.logo::after { background: url(../assets/beetle-white.png) center / contain no-repeat; }
+body.no-branding .logo-wrap { display: none; }
+
+/* ── Easter egg: 5 taps drop the logo into a draggable, throwable physics toy ── */
+@keyframes egg-wobble {
+  0%, 100% { transform: scale(1) rotate(0); }
+  30%      { transform: scale(1.07) rotate(-6deg); }
+  65%      { transform: scale(1.05) rotate(5deg); }
+}
+.logo.egg-wobble { animation: egg-wobble 0.32s ease; }
+.logo.physics {
+  position: fixed; left: 0; top: 0; margin: 0;
+  z-index: 1; /* above the funfact, still tucked behind the search box (see .search z-index) */
+  cursor: grab; touch-action: none; will-change: transform;
+  /* Reproduce the resting logo's layered elevation shadow EXACTLY. Use box-shadow,
+     NOT chained drop-shadow filters: those compound (each layer also casts a shadow
+     of the previous layer's shadow), smearing into a dark detached blob. box-shadow
+     layers composite independently, so they stay clean. The 116px box + border-radius
+     50% is a perfect disc, and a -8px spread pulls the casting circle in to the same
+     ~100px as .logo-wrap::after (inset 7% of the 116px wrap) — identical to resting. */
+  border-radius: 50%;
+  box-shadow:
+    0 2px 5px   -8px rgba(var(--logo-shade), 0.24),
+    0 6px 13px  -8px rgba(var(--logo-shade), 0.20),
+    0 14px 29px -8px rgba(var(--logo-shade), 0.22),
+    0 26px 55px -8px rgba(var(--logo-shade), 0.29);
+}
+.logo.physics.grabbing { cursor: grabbing; }
+/* The static halo/shadow belongs to the resting logo; hide it once it's flying. */
+body.physics-on .logo-wrap::before,
+body.physics-on .logo-wrap::after { opacity: 0; }
+
+/* Flat-with-depth search field. */
+.search {
+  position: relative; z-index: 2; /* stays above the thrown logo ball */
+  width: min(540px, 92vw);
+  display: flex; align-items: center; gap: 10px;
+  height: 46px;
+  padding: 0 6px 0 14px;
+  background: rgba(33, 38, 45, 0.82);
+  border: 1px solid var(--border);
+  border-top-color: var(--highlight);
+  border-radius: var(--radius, 6px);
+  box-shadow: var(--shadow-1);
+  transition: border-color 120ms ease, box-shadow 120ms ease, opacity 220ms ease;
+  /* Held invisible until the chrome pushes settings (localised placeholder,
+     engine, accent), so the English default placeholder never flashes. The
+     safety-net timeout in newtab.js reveals it even if settings never arrive. */
+  opacity: 0;
+}
+html.nt-ready .search { opacity: 1; }
+.search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow-1);
+}
+.search-shield { display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); }
+.search-shield svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+#search-input {
+  flex: 1; min-width: 0; height: 100%;
+  border: none; outline: none; background: transparent;
+  color: var(--text);
+  font-family: var(--mono); font-size: 13.5px;
+  caret-color: var(--accent);
+  user-select: text; cursor: text;
+}
+#search-input::placeholder { color: var(--muted); }
+.search-go {
+  flex: 0 0 auto;
+  width: 34px; height: 34px;
+  border: none; border-radius: 6px;
+  background: transparent; color: var(--muted);
+  display: grid; place-items: center; cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.search-go svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.search-go:hover { background: var(--surface-2); color: var(--accent); }
+
+/* High performance mode: flat solid background (no fixed-attachment repaint, no
+   gradient, no noise, no glow) and no blurred shadows. Cheapest possible paint;
+   the page stays fully usable. */
+body.high-perf { background: #0d1119; background-attachment: initial; --shadow-1: 0 0 0 transparent; }
+body.high-perf::after { display: none; }
+body.high-perf * { transition: none !important; animation: none !important; }
+body.high-perf .logo-wrap::before { display: none; }
+body.high-perf .logo-wrap::after { box-shadow: none; }
+body.high-perf .logo.physics { box-shadow: none; filter: none; }
+
+/* Fun fact under the search: grey italic line with an accent-tinted label. */
+.funfact {
+  margin-top: 36px;
+  max-width: min(560px, 92vw);
+  text-align: center;
+  line-height: 1.55;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+.funfact.show { opacity: 1; }
+.funfact-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 7px;
+}
+.funfact-text {
+  font-style: italic;
+  font-size: 13px;
+  color: var(--muted);
+}
+body.no-branding .funfact { margin-top: 28px; }
+
+/* Subtler, less raavakka fun fact (more unobtrusive per feedback). */
+.funfact { margin-top: 28px; }
+.funfact-label { font-size: 9px; font-weight: 500; letter-spacing: 1.5px; opacity: 0.42; margin-bottom: 4px; }
+.funfact-text { font-size: 12px; opacity: 0.7; }
+
+/* On the Colour (accent-tinted) background the fun fact would blend into the
+   accent wash, so switch it to light text for readability. */
+body.bg-blue .funfact-label { color: rgba(255, 255, 255, 0.8); opacity: 1; }
+body.bg-blue .funfact-text  { color: rgba(255, 255, 255, 0.8); opacity: 1; }
+
+/* ── Fake fast-load screen ───────────────────────────────────────────────────
+   A small piece of theatre: about one new tab in four (newtab.js) plays a short,
+   very smooth accent progress bar before the page settles in. The logo stays put
+   the whole time; only the search and fun fact are held back and fade into place
+   as the bar finishes, so it reads as a genuine quick load. Purely cosmetic. */
+#nt-loader {
+  position: fixed; inset: 0; z-index: 50;
+  display: grid; place-items: center;
+  opacity: 0; visibility: hidden;
+  transition: opacity 200ms ease, visibility 0s linear 200ms;
+  pointer-events: none;
+}
+body.nt-loading #nt-loader { opacity: 1; visibility: visible; transition: opacity 0s; }
+
+/* Hold the search + fun fact back while the bar fills; the logo never moves, so
+   the reveal is just the search fading into the spot the bar occupied. */
+body.nt-loading .search,
+body.nt-loading .funfact { opacity: 0; }
+
+.nt-bar {
+  width: 188px; max-width: 56vw; height: 4px;
+  border-radius: 4px;
+  background: var(--highlight);   /* faint track */
+  overflow: hidden;
+}
+.nt-bar-fill {
+  display: block; height: 100%; width: 100%;
+  border-radius: 4px;
+  background: var(--accent);
+  /* Slides left-to-right across the track. translate (not scale) keeps the fill
+     undistorted and stays on the GPU, so the sweep is perfectly smooth. */
+  transform: translateX(-100%);
+}
+/* Only promote the fill to its own GPU layer while the loader is actually on
+   screen (~1 tab in 10, under 0.5s). A standing will-change otherwise kept a
+   compositing layer alive for the whole page lifetime on every tab even though
+   the bar is visibility:hidden the rest of the time. body.nt-loading is added a
+   frame before the sweep starts, so the live animation stays just as smooth. */
+body.nt-loading .nt-bar-fill { will-change: transform; }
+
+/* On the Colour background the accent bar would vanish into the accent wash, so
+   show a light bar on a faint dark track instead (same idea as the fun fact). */
+body.bg-blue .nt-bar { background: rgba(0, 0, 0, 0.16); }
+body.bg-blue .nt-bar-fill { background: rgba(255, 255, 255, 0.92); }
+
+/* Reduced motion: no theatre, and never hold the home content back. */
+@media (prefers-reduced-motion: reduce) {
+  #nt-loader { display: none; }
+  body.nt-loading .search,
+  body.nt-loading .funfact { opacity: 1; }
+}
+
+/* ── Beautiful mode ──────────────────────────────────────────────────────────
+   Opt-in (Settings) richer motion. The dust field is painted by newtab.js onto
+   #nt-dust; it sits behind the home content (.home is z-index 1) and over the
+   background gradient. Only shown in beautiful mode, never in high-perf. */
+#nt-dust {
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none;
+  display: none;
+}
+body.beautiful #nt-dust { display: block; }
+body.high-perf #nt-dust { display: none; }
+
+/* A slow breathing accent glow on the search box, paused while it is focused so
+   the real focus ring takes over. The logo drifts gently. Both off in high-perf. */
+@keyframes nt-search-glow {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.10), 0 8px 26px rgba(var(--accent-rgb), 0.12), var(--shadow-1); }
+  50%      { box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.22), 0 16px 48px rgba(var(--accent-rgb), 0.28), var(--shadow-1); }
+}
+@keyframes nt-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+body.beautiful:not(.high-perf) .search { animation: nt-search-glow 6.5s ease-in-out infinite; }
+body.beautiful:not(.high-perf) .search:focus-within { animation: none; }
+/* The physics egg makes .logo position:fixed; an animated transform on the ancestor
+   .logo-wrap re-anchors that fixed child to the wrap (not the viewport) and flings the
+   ball off-screen. The float MUST stop the instant the egg starts, and :not(.physics-on)
+   lives in this same (higher-specificity) selector so it actually wins the cascade. */
+body.beautiful:not(.high-perf):not(.physics-on) .logo-wrap { animation: nt-float 7s ease-in-out infinite; }
+
+/* Idle "molt": after a long, untouched idle the fun fact quietly becomes a single
+   dimmer line (newtab.js). The label drops away and the text fades further back. */
+.funfact.molted .funfact-label { display: none; }
+.funfact.molted .funfact-text  { opacity: 0.45; }
+
+@media (prefers-reduced-motion: reduce) {
+  #nt-dust { display: none; }
+  body.beautiful .search,
+  body.beautiful .logo-wrap { animation: none; }
+}
+
+/* ============================================================================
+   Themes (semi-hidden; pushed from the chrome as cfg.theme). 'normal' = the dark
+   home above. Placed at the END of the file so that, at equal specificity, the
+   theme wins over the navy/blue/grey bg variants and fully owns the home backdrop
+   + text. The accent and its glow are kept, so the page still reads as Ephemera
+   in every theme. The logo stays a self-contained accent disc + white beetle, so
+   it sits correctly on a light page too.
+   ========================================================================== */
+body.nt-theme-dark {
+  --text:  #e4e8ee;
+  --muted: #828c9b;
+  --logo-shade: 0, 0, 0;
+  background:
+    radial-gradient(ellipse 120% 80% at 72% 34%, rgba(var(--accent-rgb), 0.14) 0%, transparent 55%),
+    linear-gradient(160deg, #06080b 0%, #0a0d12 60%, #0d1117 100%);
+  background-attachment: fixed;
+}
+body.nt-theme-dark::after { box-shadow: inset 0 0 200px rgba(0, 0, 0, 0.55); }
+body.nt-theme-dark.high-perf { background: #08090c; }
+
+body.nt-theme-light {
+  --surface:   #ffffff;
+  --surface-2: #e6e9ee;
+  --border:    #d4d8e0;
+  --text:      #1c2026;
+  --muted:     #5f6776;
+  --highlight: rgba(255, 255, 255, 0.9);
+  --shadow-1:  0 1px 2px rgba(20, 28, 45, 0.10);
+  --logo-shade: 64, 84, 116;   /* cool grey so the disc still lifts on a light page */
+  background:
+    radial-gradient(ellipse 120% 82% at 72% 30%, rgba(var(--accent-rgb), 0.10) 0%, transparent 56%),
+    linear-gradient(160deg, #f5f7fa 0%, #eef1f5 55%, #e7ebf1 100%);
+  background-attachment: fixed;
+}
+body.nt-theme-light::after { box-shadow: none; }                 /* drop the dark inset vignette */
+body.nt-theme-light .search { background: rgba(255, 255, 255, 0.92); }
+body.nt-theme-light.high-perf { background: #eef1f5; }
+
+/* In a theme the fun fact + load bar follow the tokens again (undo the
+   bg-blue-specific light-text overrides, which assumed the accent wash). */
+body.nt-theme-dark .funfact-label, body.nt-theme-light .funfact-label { color: var(--accent); opacity: 0.42; }
+body.nt-theme-dark .funfact-text,  body.nt-theme-light .funfact-text  { color: var(--muted); opacity: 0.7; }
+body.nt-theme-dark .nt-bar,        body.nt-theme-light .nt-bar        { background: var(--highlight); }
+body.nt-theme-dark .nt-bar-fill,   body.nt-theme-light .nt-bar-fill   { background: var(--accent); }

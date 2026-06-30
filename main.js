@@ -486,7 +486,8 @@ function registerIpc() {
     if (patch.highPerf === true) patch.beautifulMode = false;
     // Toggling "Open maximised" applies immediately, not just next launch.
     if (typeof patch.startMaximized === 'boolean' && mainWindow && !mainWindow.isDestroyed()) {
-      if (patch.startMaximized) mainWindow.maximize(); else mainWindow.unmaximize();
+      if (patch.startMaximized) { if (!mainWindow.isMaximized()) mainWindow.maximize(); }
+      else if (mainWindow.isMaximized()) mainWindow.unmaximize();
     }
     settings = { ...settings, ...patch };
     saveSettings();
